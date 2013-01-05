@@ -3,22 +3,33 @@
 
 #include <pbc.h>
 
-// A key for the CL-signature scheme.
-struct key_s {
-	element_t g;
-	element_t x;
-	element_t y;
-	element_t* z;
+struct key_secret_s {
+	mpz_t x;
+	mpz_t y;
+	mpz_t* z;
 };
-typedef struct key_s *skey_ptr;
-typedef struct key_s key_t[1];
+typedef struct key_secret_s *key_secret_ptr;
+typedef struct key_secret_s key_secret_t[1];
 
-void key_init_secret(key_t secret_key, pairing_t pairing, int n);
-void key_init_public(key_t public_key, pairing_t pairing, int n);
-void key_init_random(key_t secret_key, key_t public_key, pairing_t pairing, int n);
-void key_clear(key_t key, int n);
+void key_secret_init(key_secret_t secret_key, int n);
+void key_secret_clear(key_secret_t secret_key, int n);
 
-// A signature on a multi-part message using the CL-signature scheme.
+
+struct key_public_s {
+	element_t g;
+	element_t X;
+	element_t Y;
+	element_t* Z;
+};
+typedef struct key_public_s *key_public_ptr;
+typedef struct key_public_s key_public_t[1];
+
+void key_public_init(key_public_t public_key, pairing_t pairing, int n);
+void key_public_clear(key_public_t public_key, int n);
+
+void key_init_random(key_secret_t secret_key, key_public_t public_key, pairing_t pairing, int n);
+
+
 struct sig_s {
 	element_t a;
 	element_t* A;
@@ -30,10 +41,10 @@ typedef struct sig_s *sig_ptr;
 typedef struct sig_s sig_t[1];
 
 void sig_init(sig_t sig, pairing_t pairing, int n);
-void sig_sign_mpz(sig_t sig, key_t secret_key, mpz_t message[], int n);
-void sig_sign(sig_t sig, key_t secret_key, element_t message[], int n);
-int sig_verify_mpz(sig_t sig, key_t public_key, pairing_t pairing, mpz_t message[], int n);
-int sig_verify(sig_t sig, key_t public_key, pairing_t pairing, element_t message[], int n);
+void sig_sign_mpz(sig_t sig, key_secret_t secret_key, mpz_t message[], int n);
+void sig_sign(sig_t sig, key_secret_t secret_key, element_t message[], int n);
+int sig_verify_mpz(sig_t sig, key_public_t public_key, pairing_t pairing, mpz_t message[], int n);
+int sig_verify(sig_t sig, key_public_t public_key, pairing_t pairing, element_t message[], int n);
 void sig_clear(sig_t sig, int n);
 
 #endif // SIG_H_

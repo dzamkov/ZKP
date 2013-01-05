@@ -12,8 +12,8 @@ int main() {
 	if (!count) pbc_die("input error");
 	pairing_init_set_buf(pairing, param, count);
 	
-	key_t secret_key;
-	key_t public_key;
+	key_secret_t secret_key;
+	key_public_t public_key;
 	key_init_random(secret_key, public_key, pairing, 3);
 	
 	sig_t sig;

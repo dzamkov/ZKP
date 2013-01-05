@@ -1,66 +1,75 @@
 #include "sig.h"
 
-void key_init_secret(key_t secret_key, pairing_t pairing, int n) {
+void key_secret_init(key_secret_t secret_key, int n) {
 	int i;
 	int l = n - 1;
-	element_init_G1(secret_key->g, pairing);
-	element_init_Zr(secret_key->x, pairing);
-	element_init_Zr(secret_key->y, pairing);
+	mpz_init(secret_key->x);
+	mpz_init(secret_key->y);
 	secret_key->z = pbc_malloc(l * sizeof(element_t));
 	for (i = 0; i < l; i++) {
-		element_init_Zr(secret_key->z[i], pairing);
+		mpz_init(secret_key->z[i]);
 	}
 }
 
-void key_init_public(key_t public_key, pairing_t pairing, int n) {
+void key_secret_clear(key_secret_t secret_key, int n) {
+	int i;
+	int l = n - 1;
+	mpz_clear(secret_key->x);
+	mpz_clear(secret_key->y);
+	for (i = 0; i < l; i++) {
+		mpz_clear(secret_key->z[i]);
+	}
+	pbc_free(secret_key->z);
+}
+
+void key_public_init(key_public_t public_key, pairing_t pairing, int n) {
 	int i;
 	int l = n - 1;
 	element_init_G1(public_key->g, pairing);
-	element_init_G1(public_key->x, pairing);
-	element_init_G1(public_key->y, pairing);
-	
-	public_key->z = pbc_malloc(l * sizeof(element_t));
+	element_init_G1(public_key->X, pairing);
+	element_init_G1(public_key->Y, pairing);
+	public_key->Z = pbc_malloc(l * sizeof(element_t));
 	for (i = 0; i < l; i++) {
-		element_init_G1(public_key->z[i], pairing);
+		element_init_G1(public_key->Z[i], pairing);
 	}
 }
 
-void key_init_random(key_t secret_key, key_t public_key, pairing_t pairing, int n) {
+void key_public_clear(key_public_t public_key, int n) {
+	int i;
+	int l = n - 1;
+	element_clear(public_key->g);
+	element_clear(public_key->X);
+	element_clear(public_key->Y);
+	for (i = 0; i < l; i++) {
+		element_clear(public_key->Z[i]);
+	}
+	pbc_free(public_key->Z);
+}
+
+void key_init_random(key_secret_t secret_key, key_public_t public_key, pairing_t pairing, int n) {
 	int i;
 	int l = n - 1;
 	
-	key_init_secret(secret_key, pairing, n);
-	key_init_public(public_key, pairing, n);
+	key_secret_init(secret_key, n);
+	key_public_init(public_key, pairing, n);
 	
-	element_random(secret_key->g);
-	element_set(public_key->g, secret_key->g);
+	
+	element_random(public_key->g);
 	
 	// X = g ^ x
-	element_random(secret_key->x);
-	element_pow_zn(public_key->x, secret_key->g, secret_key->x);
+	pbc_mpz_random(secret_key->x, pairing->G1->order);
+	element_pow_mpz(public_key->X, public_key->g, secret_key->x);
 	
 	// Y = g ^ y
-	element_random(secret_key->y);
-	element_pow_zn(public_key->y, secret_key->g, secret_key->y);
+	pbc_mpz_random(secret_key->y, pairing->G1->order);
+	element_pow_mpz(public_key->Y, public_key->g, secret_key->y);
 	
 	for (i = 0; i < l; i++) {
 		
 		// Z[i] = g ^ z[i]
-		element_random(secret_key->z[i]);
-		element_pow_zn(public_key->z[i], secret_key->g, secret_key->z[i]);
+		pbc_mpz_random(secret_key->z[i], pairing->G1->order);
+		element_pow_mpz(public_key->Z[i], public_key->g, secret_key->z[i]);
 	}
-}
-
-void key_clear(key_t key, int n) {
-	int i;
-	int l = n - 1;
-	element_clear(key->g);
-	element_clear(key->x);
-	element_clear(key->y);
-	for (i = 0; i < l; i++) {
-		element_clear(key->z[i]);
-	}
-	pbc_free(key->z);
 }
 
 void sig_init(sig_t sig, pairing_t pairing, int n) {
@@ -77,40 +86,35 @@ void sig_init(sig_t sig, pairing_t pairing, int n) {
 	}
 }
 
-void sig_sign_mpz(sig_t sig, key_t secret_key, mpz_t message[], int n) {
+void sig_sign_mpz(sig_t sig, key_secret_t secret_key, mpz_t message[], int n) {
 	int i;
 	int l = n - 1;
 	
-	mpz_t x, xy, e_temp;
-	mpz_init(x);
+	mpz_t xy, e_temp;
 	mpz_init(xy);
 	mpz_init(e_temp);
 	
 	element_t temp;
 	element_init_same_as(temp, sig->a);
-	
-	element_to_mpz(x, secret_key->x);
-	element_to_mpz(xy, secret_key->y);
-	mpz_mul(xy, x, xy);
-	
-	element_random(sig->a);
-	
+
 	// b = a ^ y
-	element_pow_zn(sig->b, sig->a, secret_key->y);
+	element_random(sig->a);
+	element_pow_mpz(sig->b, sig->a, secret_key->y);
 	
 	// c = a ^ (x + x * y * m[0])
+	mpz_mul(xy, secret_key->x, secret_key->y);
 	mpz_mul(e_temp, xy, message[0]);
-	mpz_add(e_temp, e_temp, x);
+	mpz_add(e_temp, e_temp, secret_key->x);
 	element_pow_mpz(temp, sig->a, e_temp);
 	element_set(sig->c, temp);
 	
 	for (i = 0; i < l; i++) {
 		
 		// A[i] = a ^ z[i]
-		element_pow_zn(sig->A[i], sig->a, secret_key->z[i]);
+		element_pow_mpz(sig->A[i], sig->a, secret_key->z[i]);
 		
 		// B[i] = A[i] ^ y
-		element_pow_zn(sig->B[i], sig->A[i], secret_key->y);
+		element_pow_mpz(sig->B[i], sig->A[i], secret_key->y);
 		
 		// c = c * A[i] ^ (x * y * m[i + 1])
 		mpz_mul(e_temp, xy, message[i + 1]);
@@ -118,32 +122,31 @@ void sig_sign_mpz(sig_t sig, key_t secret_key, mpz_t message[], int n) {
 		element_mul(sig->c, sig->c, temp);
 	}
 	
-	mpz_clear(x);
 	mpz_clear(xy);
 	mpz_clear(e_temp);
 	element_clear(temp);
 }
 
 int verify_mpz(element_t left, element_t right, sig_t sig, 
-	key_t public_key, pairing_t pairing, mpz_t message[], int n)
+	key_public_t public_key, pairing_t pairing, mpz_t message[], int n)
 {
 	int i;
 	int l = n - 1;
 	
 	// e(a, Y) = e(g, b)
-	pairing_apply(left, sig->a, public_key->y, pairing);
+	pairing_apply(left, sig->a, public_key->Y, pairing);
 	pairing_apply(right, public_key->g, sig->b, pairing);
 	if (element_cmp(left, right)) return 0;
 
 	for (i = 0; i < l; i++) {
 		
 		// e(a, Z[i]) = e(g, A[i])
-		pairing_apply(left, sig->a, public_key->z[i], pairing);
+		pairing_apply(left, sig->a, public_key->Z[i], pairing);
 		pairing_apply(right, public_key->g, sig->A[i], pairing);
 		if (element_cmp(left, right)) return 0;
 		
 		// e(A[i], Y) = e(g, B[i])
-		pairing_apply(left, sig->A[i], public_key->y, pairing);
+		pairing_apply(left, sig->A[i], public_key->Y, pairing);
 		pairing_apply(right, public_key->g, sig->B[i], pairing);
 		if (element_cmp(left, right)) return 0;
 	}
@@ -151,7 +154,7 @@ int verify_mpz(element_t left, element_t right, sig_t sig,
 	pairing_pp_t p;
 	element_t temp;
 	element_init_GT(temp, pairing);
-	pairing_pp_init(p, public_key->x, pairing);
+	pairing_pp_init(p, public_key->X, pairing);
 	
 	// right = e(X, a) * e(X, b) ^ m[0]
 	pairing_pp_apply(right, sig->a, p);
@@ -177,7 +180,7 @@ int verify_mpz(element_t left, element_t right, sig_t sig,
 	return 1;
 }
 
-int sig_verify_mpz(sig_t sig, key_t public_key, pairing_t pairing, mpz_t message[], int n) {
+int sig_verify_mpz(sig_t sig, key_public_t public_key, pairing_t pairing, mpz_t message[], int n) {
 	element_t left, right;
 	element_init_GT(left, pairing);
 	element_init_GT(right, pairing);
