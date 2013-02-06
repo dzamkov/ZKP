@@ -28,5 +28,7 @@ int main() {
 	
 	int result = sig_verify_mpz(sig, public_key, pairing, message, 3);
 	
+	
+	
 	return 0;
 }
