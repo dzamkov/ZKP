@@ -1,5 +1,5 @@
-#ifndef SIG_H_
-#define SIG_H_
+#ifndef ZKP_SIG_H_
+#define ZKP_SIG_H_
 
 #include <pbc.h>
 
@@ -47,4 +47,4 @@ int sig_verify_mpz(sig_t sig, key_public_t public_key, pairing_t pairing, mpz_t 
 int sig_verify(sig_t sig, key_public_t public_key, pairing_t pairing, element_t message[], int n);
 void sig_clear(sig_t sig, int n);
 
-#endif // SIG_H_
+#endif // ZKP_SIG_H_

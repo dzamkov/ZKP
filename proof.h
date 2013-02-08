@@ -1,5 +1,5 @@
-#ifndef PROOF_H_
-#define PROOF_H_
+#ifndef ZKP_PROOF_H_
+#define ZKP_PROOF_H_
 
 #include <pbc.h>
 
@@ -63,8 +63,8 @@ var_t new_const(proof_t proof, mpz_t value);
 // Defines a new constant variable in the given proof.
 var_t new_const_ui(proof_t proof, unsigned long int value);
 
-// Retrieves a pointer to the value of a constant variable in the given proof.
-mpz_ptr lookup_const(proof_t proof, var_t var);
+// Retrieves the value of a constant variable in the given proof.
+mpz_ptr get_const(proof_t proof, var_t var);
 
 
 // A specific instance of a proof, including the values of all known variables.
@@ -86,8 +86,22 @@ struct instance_s {
 typedef struct instance_s *instance_ptr;
 typedef struct instance_s instance_t[1];
 
-// Retrieves a pointer to the value of a variable in an instance of the given proof.
-mpz_ptr lookup(proof_t proof, instance_t instance, var_t var);
+// Initializes a prover instance of a proof.
+void instance_init_prover(proof_t proof, instance_t instance);
+
+// Initializes a verifier instance of a proof.
+void instance_init_verifier(proof_t proof, instance_t instance);
+
+// Frees the space occupied by an instance of a proof.
+void instance_clear(proof_t proof, instance_t instance);
+
+// Sets the value of a variable in an instance of a proof. If the variable is
+// secret, a random opening and corresponding commitment will automatically be
+// generated.
+void set(proof_t proof, instance_t instance, var_t var, mpz_t value);
+
+// Retrieves the value of a variable in an instance of the given proof.
+mpz_ptr get(proof_t proof, instance_t instance, var_t var);
 
 
 // A witness of an instance of a proof. This information is generated before a challenge is given.
@@ -126,4 +140,4 @@ struct response_s {
 typedef struct response_s *response_ptr;
 typedef struct response_s response_t[1];
 
-#endif // PROOF_H_
+#endif // ZKP_PROOF_H_
