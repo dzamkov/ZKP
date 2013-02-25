@@ -59,7 +59,7 @@ void assign_clear(struct computation_s *c) {
 
 void assign_apply(struct computation_s *c, proof_t proof, inst_t inst) {
 	struct computation_assign_s *self = (struct computation_assign_s*)c;
-	inst_set(proof, inst, self->var, self->value);
+	inst_var_set(proof, inst, self->var, self->value);
 };
 
 void compute_assign(proof_t proof, var_t var, mpz_t value) {
@@ -86,9 +86,9 @@ void assign_i_clear(struct computation_s *c) {
 void assign_i_apply(struct computation_s *c, proof_t proof, inst_t inst) {
 	struct computation_assign_i_s *self = (struct computation_assign_i_s*)c;
 	if (self->is_signed) {
-		inst_set_si(proof, inst, self->var, (signed long int)self->value);
+		inst_var_set_si(proof, inst, self->var, (signed long int)self->value);
 	} else {
-		inst_set_ui(proof, inst, self->var, (unsigned long int)self->value);
+		inst_var_set_ui(proof, inst, self->var, (unsigned long int)self->value);
 	}
 };
 

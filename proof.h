@@ -77,6 +77,7 @@ int is_secret(var_t var);
 // Indicates whether the given variable is public.
 int is_public(var_t var);
 
+
 // A specific instance of a proof, including the values of all known variables.
 struct inst_s {
 	
@@ -111,15 +112,32 @@ void inst_clear(proof_t proof, inst_t inst);
 // Sets the value of a variable in an instance of a proof. If the variable is
 // secret, a random opening and corresponding commitment will automatically be
 // generated.
-void inst_set(proof_t proof, inst_t inst, var_t var, mpz_t value);
-void inst_set_ui(proof_t proof, inst_t inst, var_t var, unsigned long int value);
-void inst_set_si(proof_t proof, inst_t inst, var_t var, signed long int value);
+void inst_var_set(proof_t proof, inst_t inst, var_t var, mpz_t value);
+void inst_var_set_ui(proof_t proof, inst_t inst, var_t var, unsigned long int value);
+void inst_var_set_si(proof_t proof, inst_t inst, var_t var, signed long int value);
 
 // Retrieves the value of a variable in an instance of the given proof.
-mpz_ptr inst_get(proof_t proof, inst_t inst, var_t var);
+mpz_ptr inst_var_get(proof_t proof, inst_t inst, var_t var);
 
 // Applies all proof computations on the given instance.
 void inst_update(proof_t proof, inst_t inst);
+
+
+// Outputs the value of an instance variable to a stream, returning the number of bytes that were
+// written, or 0, if an error occured.
+size_t inst_var_out_raw(FILE* stream, proof_t proof, inst_t inst, var_t var);
+
+// Reads the value of an instance variable from a stream, returning the number of bytes that were
+// read, or 0, if an error occured.
+size_t inst_var_inp_raw(proof_t proof, inst_t inst, var_t var, FILE* stream);
+
+// Outputs the commitment for a secret instance variable to a stream, returning the number of bytes that
+// were written, or 0, if an error occured.
+size_t inst_commitment_out_raw(FILE* stream, proof_t proof, inst_t inst, var_t var);
+
+// Reads a commitment for a secret instance variable to a stream, returning the number of bytes that
+// were written, or 0, if an error occured.
+size_t inst_commitment_inp_raw(proof_t proof, inst_t inst, var_t var, FILE* stream);
 
 
 // A witness of an instance of a proof. This information is generated before a challenge is given.

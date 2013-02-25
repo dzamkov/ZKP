@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <pbc.h>
 #include "proof.h"
+#include "misc.h"
 
 void proof_init(proof_t proof, element_t g, element_t h) {
 	proof->num_secret = 0;
@@ -17,7 +18,7 @@ void proof_init(proof_t proof, element_t g, element_t h) {
 	proof->last_secret_computation = NULL;
 }
 
-void clear_computations(struct computation_s *first);
+void clear_computations(struct computation_s*);
 void proof_clear(proof_t proof) {
 	element_clear(proof->g);
 	element_clear(proof->h);
@@ -39,21 +40,21 @@ var_t new_public(proof_t proof) {
 	return var;
 }
 
-void compute_assign(proof_t proof, var_t var, mpz_t value);
+void compute_assign(proof_t, var_t, mpz_t);
 var_t new_const(proof_t proof, mpz_t value) {
 	var_t var = new_public(proof);
 	compute_assign(proof, var, value);
 	return var;
 }
 
-void compute_assign_ui(proof_t proof, var_t var, unsigned long int value);
+void compute_assign_ui(proof_t, var_t, unsigned long int);
 var_t new_const_ui(proof_t proof, unsigned long int value) {
 	var_t var = new_public(proof);
 	compute_assign_ui(proof, var, value);
 	return var;
 }
 
-void compute_assign_si(proof_t proof, var_t var, signed long int value);
+void compute_assign_si(proof_t, var_t, signed long int);
 var_t new_const_si(proof_t proof, signed long int value) {
 	var_t var = new_public(proof);
 	compute_assign_si(proof, var, value);
@@ -130,7 +131,7 @@ void update_secret_commitment(proof_t proof, inst_t inst, long index) {
 		proof->h, inst->secret_openings[index]);
 }
 
-void inst_set(proof_t proof, inst_t inst, var_t var, mpz_t value) {
+void inst_var_set(proof_t proof, inst_t inst, var_t var, mpz_t value) {
 	long index = var & var_index_mask;
 	if (is_secret(var)) {
 		assert(inst->secret_values != NULL);
@@ -141,7 +142,7 @@ void inst_set(proof_t proof, inst_t inst, var_t var, mpz_t value) {
 	}
 }
 
-void inst_set_ui(proof_t proof, inst_t inst, var_t var, unsigned long int value) {
+void inst_var_set_ui(proof_t proof, inst_t inst, var_t var, unsigned long int value) {
 	long index = var & var_index_mask;
 	if (is_secret(var)) {
 		assert(inst->secret_values != NULL);
@@ -152,7 +153,7 @@ void inst_set_ui(proof_t proof, inst_t inst, var_t var, unsigned long int value)
 	}
 }
 
-void inst_set_si(proof_t proof, inst_t inst, var_t var, signed long int value) {
+void inst_var_set_si(proof_t proof, inst_t inst, var_t var, signed long int value) {
 	long index = var & var_index_mask;
 	if (is_secret(var)) {
 		assert(inst->secret_values != NULL);
@@ -163,7 +164,7 @@ void inst_set_si(proof_t proof, inst_t inst, var_t var, signed long int value) {
 	}
 }
 
-mpz_ptr inst_get(proof_t proof, inst_t inst, var_t var) {
+mpz_ptr inst_var_get(proof_t proof, inst_t inst, var_t var) {
 	long index =  var & var_index_mask;
 	if (is_secret(var)) {
 		assert(inst->secret_values != NULL);
@@ -178,4 +179,30 @@ void inst_update(proof_t proof, inst_t inst) {
 	} else {
 		apply_computations(proof->first_public_computation, proof->first_secret_computation, proof, inst);
 	}
+}
+
+size_t inst_var_out_raw(FILE* stream, proof_t proof, inst_t inst, var_t var) {
+	return mpz_out_raw(stream, inst_var_get(proof, inst, var));
+}
+
+size_t inst_var_inp_raw(proof_t proof, inst_t inst, var_t var, FILE* stream) {
+	long index = var & var_index_mask;
+	if (is_secret(var)) {
+		assert(inst->secret_values != NULL);
+		size_t size = mpz_inp_raw(inst->secret_values[index], stream);
+		update_secret_commitment(proof, inst, index);
+		return size;
+	} else {
+		return mpz_inp_raw(inst->public_values[index], stream);
+	}
+}
+
+size_t inst_commitment_out_raw(FILE* stream, proof_t proof, inst_t inst, var_t var) {
+	assert(is_secret(var));
+	return element_out_raw(stream, inst->secret_commitments[var & var_index_mask]);
+}
+
+size_t inst_commitment_inp_raw(proof_t proof, inst_t inst, var_t var, FILE* stream) {
+	assert(is_secret(var));
+	return element_inp_raw(inst->secret_commitments[var & var_index_mask], stream);
 }
