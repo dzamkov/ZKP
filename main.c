@@ -26,7 +26,6 @@ int main() {
 	var_t p = new_secret(proof);
 	var_t q = new_secret(proof);
 	var_t m = new_public(proof);
-	var_t c = new_const_ui(proof, 523);
 	
 	// Create an instance of the proof (prover)
 	inst_t pinst;
@@ -42,15 +41,12 @@ int main() {
 	inst_set_ui(proof, vinst, m, 17473);
 	inst_update(proof, vinst);
 	
-	gmp_printf("Prover: P = %Zd, Q = %Zd, M = %Zd, C = %Zd\n",
+	gmp_printf("Prover: P = %Zd, Q = %Zd, M = %Zd\n",
 				inst_get(proof, pinst, p),
 				inst_get(proof, pinst, q),
-				inst_get(proof, pinst, m),
-				inst_get(proof, pinst, c));
+				inst_get(proof, pinst, m));
 				
-	gmp_printf("Verifier: M = %Zd, C = %Zd", 
-				inst_get(proof, vinst, m),
-				inst_get(proof, vinst, c));
+	gmp_printf("Verifier: M = %Zd\n", inst_get(proof, vinst, m));
 	
 	getchar();
 	return 0;

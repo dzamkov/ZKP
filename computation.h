@@ -15,5 +15,6 @@ struct computation_s {
 // Inserts a computation into a proof that assigns a constant value to a variable.
 void compute_assign(proof_t proof, var_t var, mpz_t value);
 void compute_assign_ui(proof_t proof, var_t var, unsigned long int value);
+void compute_assign_si(proof_t proof, var_t var, signed long int value);
 
 #endif // ZKP_COMPUTATION_H_

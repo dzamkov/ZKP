@@ -53,6 +53,13 @@ var_t new_const_ui(proof_t proof, unsigned long int value) {
 	return var;
 }
 
+void compute_assign_si(proof_t proof, var_t var, signed long int value);
+var_t new_const_si(proof_t proof, signed long int value) {
+	var_t var = new_public(proof);
+	compute_assign_si(proof, var, value);
+	return var;
+}
+
 int is_secret(var_t var) {
 	return var & var_secret_flag;
 }
@@ -142,6 +149,17 @@ void inst_set_ui(proof_t proof, inst_t inst, var_t var, unsigned long int value)
 		update_secret_commitment(proof, inst, index);
 	} else {
 		mpz_set_ui(inst->public_values[index], value);
+	}
+}
+
+void inst_set_si(proof_t proof, inst_t inst, var_t var, signed long int value) {
+	long index = var & var_index_mask;
+	if (is_secret(var)) {
+		assert(inst->secret_values != NULL);
+		mpz_set_si(inst->secret_values[index], value);
+		update_secret_commitment(proof, inst, index);
+	} else {
+		mpz_set_si(inst->public_values[index], value);
 	}
 }
 

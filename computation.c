@@ -72,26 +72,40 @@ void compute_assign(proof_t proof, var_t var, mpz_t value) {
 }
 
 
-struct computation_assign_ui_s {
+struct computation_assign_i_s {
 	struct computation_s base;
 	var_t var;
-	unsigned long int value;
+	long int value;
+	int is_signed;
 };
 
-void assign_ui_clear(struct computation_s *c) {
+void assign_i_clear(struct computation_s *c) {
 	pbc_free(c);
 };
 
-void assign_ui_apply(struct computation_s *c, proof_t proof, inst_t inst) {
-	struct computation_assign_ui_s *self = (struct computation_assign_ui_s*)c;
-	inst_set_ui(proof, inst, self->var, self->value);
+void assign_i_apply(struct computation_s *c, proof_t proof, inst_t inst) {
+	struct computation_assign_i_s *self = (struct computation_assign_i_s*)c;
+	if (self->is_signed) {
+		inst_set_si(proof, inst, self->var, (signed long int)self->value);
+	} else {
+		inst_set_ui(proof, inst, self->var, (unsigned long int)self->value);
+	}
 };
 
-void compute_assign_ui(proof_t proof, var_t var, unsigned long int value) {
-	struct computation_assign_ui_s *self = (struct computation_assign_ui_s*)pbc_malloc(sizeof(struct computation_assign_ui_s));
-	self->base.clear = &assign_ui_clear;
-	self->base.apply = &assign_ui_apply;
+void compute_assign_i(proof_t proof, var_t var, long int value, int is_signed) {
+	struct computation_assign_i_s *self = (struct computation_assign_i_s*)pbc_malloc(sizeof(struct computation_assign_i_s));
+	self->base.clear = &assign_i_clear;
+	self->base.apply = &assign_i_apply;
 	self->var = var;
 	self->value = value;
+	self->is_signed = is_signed;
 	insert_computation(proof, is_secret(var), &self->base);
+}
+
+void compute_assign_ui(proof_t proof, var_t var, unsigned long int value) {
+	compute_assign_i(proof, var, value, 0);
+}
+
+void compute_assign_si(proof_t proof, var_t var, signed long int value) {
+	compute_assign_i(proof, var, value, 1);
 }

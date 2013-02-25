@@ -69,6 +69,7 @@ var_t new_public(proof_t proof);
 // Defines a new constant variable in the given proof.
 var_t new_const(proof_t proof, mpz_t value);
 var_t new_const_ui(proof_t proof, unsigned long int value);
+var_t new_const_si(proof_t proof, signed long int value);
 
 // Indicates whether the given variable is secret.
 int is_secret(var_t var);
@@ -112,6 +113,7 @@ void inst_clear(proof_t proof, inst_t inst);
 // generated.
 void inst_set(proof_t proof, inst_t inst, var_t var, mpz_t value);
 void inst_set_ui(proof_t proof, inst_t inst, var_t var, unsigned long int value);
+void inst_set_si(proof_t proof, inst_t inst, var_t var, signed long int value);
 
 // Retrieves the value of a variable in an instance of the given proof.
 mpz_ptr inst_get(proof_t proof, inst_t inst, var_t var);
