@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <pbc.h>
 #include "proof.h"
 
 void proof_init(proof_t proof, element_t g, element_t h) {
@@ -10,144 +11,153 @@ void proof_init(proof_t proof, element_t g, element_t h) {
 	element_init_same_as(proof->g, g); element_set(proof->g, g);
 	element_init_same_as(proof->h, h); element_set(proof->h, h);
 	
-	proof->consts = NULL;
+	proof->first_public_computation = NULL;
+	proof->last_public_computation = NULL;
+	proof->first_secret_computation = NULL;
+	proof->last_secret_computation = NULL;
 }
 
+void clear_computations(struct computation_s *first);
 void proof_clear(proof_t proof) {
-	int i;
 	element_clear(proof->g);
 	element_clear(proof->h);
-	if (proof->consts != NULL) {
-		for (i = 0; i < proof->num_const; i++) {
-			mpz_clear(proof->consts[i]);
-		}
-		pbc_free(proof->consts);
-	}
+	clear_computations(proof->first_public_computation);
 }
 
-
-static long var_index_mask = 0x00FFFFFF;
-static long var_type_mask = 0xFF000000;
-static long var_type_secret = 0x00000000;
-static long var_type_public = 0x01000000;
-static long var_type_const = 0x02000000;
+static long var_secret_flag = 0x80000000;
+static long var_index_mask = 0x7FFFFFFF;
 
 var_t new_secret(proof_t proof) {
-	var_t var = var_type_secret | proof->num_secret;
+	var_t var = var_secret_flag | proof->num_secret;
 	proof->num_secret++;
 	return var;
 }
 
 var_t new_public(proof_t proof) {
-	var_t var = var_type_public | proof->num_public;
+	var_t var = proof->num_public;
 	proof->num_public++;
 	return var;
 }
 
-var_t alloc_const(proof_t proof) {
-	var_t var = var_type_const | proof->num_const;
-	proof->num_const++;
-	if (proof->consts == NULL) {
-		proof->consts = pbc_malloc(proof->num_const * sizeof(mpz_t));
-		proof->num_const_alloc = proof->num_const;
-	} else if (proof->num_const > proof->num_const_alloc) {
-		proof->num_const_alloc = proof->num_const_alloc * 2;
-		proof->consts = pbc_realloc(proof->consts, proof->num_const_alloc * sizeof(mpz_t));
-	}
-	return var;
-}
-
+void compute_assign(proof_t proof, var_t var, mpz_t value);
 var_t new_const(proof_t proof, mpz_t value) {
-	var_t var = alloc_const(proof);
-	mpz_init_set(proof->consts[var & var_index_mask], value);
+	var_t var = new_public(proof);
+	compute_assign(proof, var, value);
 	return var;
 }
 
+void compute_assign_ui(proof_t proof, var_t var, unsigned long int value);
 var_t new_const_ui(proof_t proof, unsigned long int value) {
-	var_t var = alloc_const(proof);
-	mpz_init_set_ui(proof->consts[var & var_index_mask], value);
+	var_t var = new_public(proof);
+	compute_assign_ui(proof, var, value);
 	return var;
 }
 
-mpz_ptr get_const(proof_t proof, var_t var) {
-	assert((var_type_mask & var) == var_type_const);
-	return proof->consts[var & var_index_mask];
+int is_secret(var_t var) {
+	return var & var_secret_flag;
 }
 
+int is_public(var_t var) {
+	return (var & var_secret_flag) == 0;
+}
 
-void instance_init_prover(proof_t proof, instance_t instance) {
+void inst_init_prover(proof_t proof, inst_t inst) {
 	int i;
-	instance->secret_values = pbc_malloc(proof->num_secret * sizeof(mpz_t));
-	instance->secret_openings = pbc_malloc(proof->num_secret * sizeof(mpz_t));
-	instance->secret_commitments = pbc_malloc(proof->num_secret * sizeof(element_t));
+	inst->secret_values = pbc_malloc(proof->num_secret * sizeof(mpz_t));
+	inst->secret_openings = pbc_malloc(proof->num_secret * sizeof(mpz_t));
+	inst->secret_commitments = pbc_malloc(proof->num_secret * sizeof(element_t));
 	for (i = 0; i < proof->num_secret; i++) {
-		mpz_init(instance->secret_values[i]);
-		mpz_init(instance->secret_openings[i]);
-		element_init_same_as(instance->secret_commitments[i], proof->g);
+		mpz_init(inst->secret_values[i]);
+		mpz_init(inst->secret_openings[i]);
+		element_init_same_as(inst->secret_commitments[i], proof->g);
 	}
 	
-	instance->public_values = pbc_malloc(proof->num_public * sizeof(mpz_t));
+	inst->public_values = pbc_malloc(proof->num_public * sizeof(mpz_t));
 	for (i = 0; i < proof->num_public; i++) {
-		mpz_init(instance->public_values[i]);
+		mpz_init(inst->public_values[i]);
 	}
 }
 
-void instance_init_verifier(proof_t proof, instance_t instance) {
+void inst_init_verifier(proof_t proof, inst_t inst) {
 	int i;
-	instance->secret_values = NULL;
-	instance->secret_openings = NULL;
-	instance->secret_commitments = pbc_malloc(proof->num_secret * sizeof(element_t));
+	inst->secret_values = NULL;
+	inst->secret_openings = NULL;
+	inst->secret_commitments = pbc_malloc(proof->num_secret * sizeof(element_t));
 	for (i = 0; i < proof->num_secret; i++) {
-		element_init_same_as(instance->secret_commitments[i], proof->g);
+		element_init_same_as(inst->secret_commitments[i], proof->g);
 	}
 	
-	instance->public_values = pbc_malloc(proof->num_public * sizeof(mpz_t));
+	inst->public_values = pbc_malloc(proof->num_public * sizeof(mpz_t));
 	for (i = 0; i < proof->num_public; i++) {
-		mpz_init(instance->public_values[i]);
+		mpz_init(inst->public_values[i]);
 	}
 }
 
-void instance_clear(proof_t proof, instance_t instance) {
+void inst_clear(proof_t proof, inst_t inst) {
 	int i;
-	if (instance->secret_values != NULL) {
+	if (inst->secret_values != NULL) {
 		for (i = 0; i < proof->num_secret; i++) {
-			mpz_clear(instance->secret_values[i]);
-			mpz_clear(instance->secret_openings[i]);
-			element_free(instance->secret_commitments[i]);
+			mpz_clear(inst->secret_values[i]);
+			mpz_clear(inst->secret_openings[i]);
+			element_free(inst->secret_commitments[i]);
 		}
-		pbc_free(instance->secret_values);
-		pbc_free(instance->secret_openings);
+		pbc_free(inst->secret_values);
+		pbc_free(inst->secret_openings);
 	} else {
 		for (i = 0; i < proof->num_secret; i++) {
-			element_free(instance->secret_commitments[i]);
+			element_free(inst->secret_commitments[i]);
 		}
 	}
-	pbc_free(instance->secret_commitments);
+	pbc_free(inst->secret_commitments);
 	
 	for (i = 0; i < proof->num_public; i++) {
-		mpz_clear(instance->public_values[i]);
+		mpz_clear(inst->public_values[i]);
 	}
-	pbc_free(instance->public_values);
+	pbc_free(inst->public_values);
 }
 
-void set(proof_t proof, instance_t instance, var_t var, mpz_t value) {
-	long type = var_type_mask & var;
-	long index = var_index_mask & var;
-	if (type == var_type_secret) {
-		mpz_set(instance->secret_values[index], value);
-		pbc_mpz_random(instance->secret_openings[index], proof->g->field->order);
-		element_pow2_mpz(instance->secret_commitments[index], // C_x = g^x h^(o_x)
-			proof->g, instance->secret_values[index],
-			proof->h, instance->secret_openings[index]);
-	} else if (type == var_type_public) {
-		mpz_set(instance->public_values[index], value);
-	} else assert(0);
+void update_secret_commitment(proof_t proof, inst_t inst, long index) {
+	pbc_mpz_random(inst->secret_openings[index], proof->g->field->order);
+	element_pow2_mpz(inst->secret_commitments[index], // C_x = g^x h^(o_x)
+		proof->g, inst->secret_values[index],
+		proof->h, inst->secret_openings[index]);
 }
 
-mpz_ptr get(proof_t proof, instance_t instance, var_t var) {
-	long type = var_type_mask & var;
-	long index = var_index_mask & var;
-	if (type == var_type_secret) return instance->secret_values[index];
-	else if (type == var_type_public) return instance->public_values[index];
-	else return proof->consts[index];
+void inst_set(proof_t proof, inst_t inst, var_t var, mpz_t value) {
+	long index = var & var_index_mask;
+	if (is_secret(var)) {
+		assert(inst->secret_values != NULL);
+		mpz_set(inst->secret_values[index], value);
+		update_secret_commitment(proof, inst, index);
+	} else {
+		mpz_set(inst->public_values[index], value);
+	}
+}
+
+void inst_set_ui(proof_t proof, inst_t inst, var_t var, unsigned long int value) {
+	long index = var & var_index_mask;
+	if (is_secret(var)) {
+		assert(inst->secret_values != NULL);
+		mpz_set_ui(inst->secret_values[index], value);
+		update_secret_commitment(proof, inst, index);
+	} else {
+		mpz_set_ui(inst->public_values[index], value);
+	}
+}
+
+mpz_ptr inst_get(proof_t proof, inst_t inst, var_t var) {
+	long index =  var & var_index_mask;
+	if (is_secret(var)) {
+		assert(inst->secret_values != NULL);
+		return inst->secret_values[index];
+	} else return inst->public_values[index];
+}
+
+void apply_computations(struct computation_s*, struct computation_s*,  proof_t, inst_t);
+void inst_update(proof_t proof, inst_t inst) {
+	if (inst->secret_values != NULL) {
+		apply_computations(proof->first_public_computation, NULL, proof, inst);
+	} else {
+		apply_computations(proof->first_public_computation, proof->first_secret_computation, proof, inst);
+	}
 }

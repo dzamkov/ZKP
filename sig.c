@@ -1,3 +1,6 @@
+// Requires:
+//  * pbc.h
+#include <pbc.h>
 #include "sig.h"
 
 void key_secret_init(key_secret_t secret_key, int n) {

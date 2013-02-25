@@ -35,6 +35,11 @@
 		<Compiler>
 			<Add option="-Wall" />
 		</Compiler>
+		<Unit filename="block.h" />
+		<Unit filename="computation.c">
+			<Option compilerVar="CC" />
+		</Unit>
+		<Unit filename="computation.h" />
 		<Unit filename="main.c">
 			<Option compilerVar="CC" />
 		</Unit>
@@ -46,6 +51,7 @@
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="sig.h" />
+		<Unit filename="zkp.h" />
 		<Extensions>
 			<code_completion />
 			<debugger />

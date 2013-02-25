@@ -1,8 +1,6 @@
 #ifndef ZKP_SIG_H_
 #define ZKP_SIG_H_
 
-#include <pbc.h>
-
 struct key_secret_s {
 	mpz_t x;
 	mpz_t y;

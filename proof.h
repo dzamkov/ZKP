@@ -1,7 +1,9 @@
+// Requires:
+//  * pbc.h
 #ifndef ZKP_PROOF_H_
 #define ZKP_PROOF_H_
 
-#include <pbc.h>
+struct computation_s;
 
 // Describes a zero-knowledge proof.
 struct proof_s {
@@ -28,11 +30,19 @@ struct proof_s {
 	element_t h;
 	
 	
-	// The number of constant variables allocated.
-	int num_const_alloc;
+	// The first public computation for this proof.
+	struct computation_s *first_public_computation;
 	
-	// The values of the constant variables.
-	mpz_t* consts;
+	// The last public computation for this proof. 
+	struct computation_s *last_public_computation;
+	
+	// The first secret computation for this proof. (Note that secret computations
+	// always occur after public computations because the result of a public computation
+	// can never depend on the result of a secret computation)
+	struct computation_s *first_secret_computation;
+	
+	// The last secret computatino for this proof.
+	struct computation_s *last_secret_computation;
 	
 };
 typedef struct proof_s *proof_ptr;
@@ -45,10 +55,9 @@ void proof_init(proof_t proof, element_t g, element_t h);
 void proof_clear(proof_t proof);
 
 
-// A reference to a proof variable, which may either be a
-// constant (intrinsic to the proof, same for all instances), public (set
-// consistently between the prover and verifier for each instance), or secret 
-// (set by the prover on each instance and kept unknown to the verifier).
+// A reference to a proof variable, which may either be secret (set by the 
+// prover on each instance and kept unknown to the verifier) or public (set
+// consistently between the prover and verifier for each instance)
 typedef unsigned long var_t;
 
 // Declares a new secret variable in the given proof.
@@ -59,16 +68,16 @@ var_t new_public(proof_t proof);
 
 // Defines a new constant variable in the given proof.
 var_t new_const(proof_t proof, mpz_t value);
-
-// Defines a new constant variable in the given proof.
 var_t new_const_ui(proof_t proof, unsigned long int value);
 
-// Retrieves the value of a constant variable in the given proof.
-mpz_ptr get_const(proof_t proof, var_t var);
+// Indicates whether the given variable is secret.
+int is_secret(var_t var);
 
+// Indicates whether the given variable is public.
+int is_public(var_t var);
 
 // A specific instance of a proof, including the values of all known variables.
-struct instance_s {
+struct inst_s {
 	
 	// The values of the secret variables. This will be NULL for the verifier.
 	mpz_t *secret_values;
@@ -80,28 +89,35 @@ struct instance_s {
 	// prover.
 	element_t *secret_commitments;
 	
+	// Extra proof-dependent secret information.
+	char *secret_extra;
+	
 	// The values of the public variables.
 	mpz_t *public_values;
 };
-typedef struct instance_s *instance_ptr;
-typedef struct instance_s instance_t[1];
+typedef struct inst_s *inst_ptr;
+typedef struct inst_s inst_t[1];
 
 // Initializes a prover instance of a proof.
-void instance_init_prover(proof_t proof, instance_t instance);
+void inst_init_prover(proof_t proof, inst_t inst);
 
 // Initializes a verifier instance of a proof.
-void instance_init_verifier(proof_t proof, instance_t instance);
+void inst_init_verifier(proof_t proof, inst_t inst);
 
 // Frees the space occupied by an instance of a proof.
-void instance_clear(proof_t proof, instance_t instance);
+void inst_clear(proof_t proof, inst_t inst);
 
 // Sets the value of a variable in an instance of a proof. If the variable is
 // secret, a random opening and corresponding commitment will automatically be
 // generated.
-void set(proof_t proof, instance_t instance, var_t var, mpz_t value);
+void inst_set(proof_t proof, inst_t inst, var_t var, mpz_t value);
+void inst_set_ui(proof_t proof, inst_t inst, var_t var, unsigned long int value);
 
 // Retrieves the value of a variable in an instance of the given proof.
-mpz_ptr get(proof_t proof, instance_t instance, var_t var);
+mpz_ptr inst_get(proof_t proof, inst_t inst, var_t var);
+
+// Applies all proof computations on the given instance.
+void inst_update(proof_t proof, inst_t inst);
 
 
 // A witness of an instance of a proof. This information is generated before a challenge is given.
@@ -116,15 +132,12 @@ struct witness_s {
 	// The commitments for the randomizers. 
 	element_t *randomizer_commitments;
 	
-	// Extra witness information in the Z field.
-	mpz_t *extra_Z;
-	
-	// Extra witness information in the G field.
-	element_t *extra_G;
-	
+	// Extra proof-dependent witness information.
+	char *extra;
 };
 typedef struct witness_s *witness_ptr;
 typedef struct witness_s witness_t[1];
+
 
 // A response to challenge for a witness.
 struct response_s {
