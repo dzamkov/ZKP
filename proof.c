@@ -1,14 +1,10 @@
 #include <assert.h>
-#include <pbc.h>
-#include "proof.h"
-#include "misc.h"
+#include "zkp.h"
+#include "zkp_internal.h"
 
 void proof_init(proof_t proof, element_t g, element_t h) {
 	proof->num_secret = 0;
 	proof->num_public = 0;
-	proof->num_const = 0;
-	proof->num_extra_G = 0;
-	proof->num_extra_Z = 0;
 	element_init_same_as(proof->g, g); element_set(proof->g, g);
 	element_init_same_as(proof->h, h); element_set(proof->h, h);
 	
@@ -16,13 +12,17 @@ void proof_init(proof_t proof, element_t g, element_t h) {
 	proof->last_public_computation = NULL;
 	proof->first_secret_computation = NULL;
 	proof->last_secret_computation = NULL;
+	
+	proof->first_block = NULL;
+	proof->last_block = NULL;
+	proof->witness_extra_size = 0;
 }
 
-void clear_computations(struct computation_s*);
 void proof_clear(proof_t proof) {
 	element_clear(proof->g);
 	element_clear(proof->h);
-	clear_computations(proof->first_public_computation);
+	computations_clear(proof);
+	blocks_clear(proof);
 }
 
 static long var_secret_flag = 0x80000000;
@@ -37,27 +37,6 @@ var_t new_secret(proof_t proof) {
 var_t new_public(proof_t proof) {
 	var_t var = proof->num_public;
 	proof->num_public++;
-	return var;
-}
-
-void compute_assign(proof_t, var_t, mpz_t);
-var_t new_const(proof_t proof, mpz_t value) {
-	var_t var = new_public(proof);
-	compute_assign(proof, var, value);
-	return var;
-}
-
-void compute_assign_ui(proof_t, var_t, unsigned long int);
-var_t new_const_ui(proof_t proof, unsigned long int value) {
-	var_t var = new_public(proof);
-	compute_assign_ui(proof, var, value);
-	return var;
-}
-
-void compute_assign_si(proof_t, var_t, signed long int);
-var_t new_const_si(proof_t proof, signed long int value) {
-	var_t var = new_public(proof);
-	compute_assign_si(proof, var, value);
 	return var;
 }
 
@@ -172,15 +151,6 @@ mpz_ptr inst_var_get(proof_t proof, inst_t inst, var_t var) {
 	} else return inst->public_values[index];
 }
 
-void apply_computations(struct computation_s*, struct computation_s*,  proof_t, inst_t);
-void inst_update(proof_t proof, inst_t inst) {
-	if (inst->secret_values != NULL) {
-		apply_computations(proof->first_public_computation, NULL, proof, inst);
-	} else {
-		apply_computations(proof->first_public_computation, proof->first_secret_computation, proof, inst);
-	}
-}
-
 size_t inst_var_out_raw(FILE* stream, proof_t proof, inst_t inst, var_t var) {
 	return mpz_out_raw(stream, inst_var_get(proof, inst, var));
 }
@@ -205,4 +175,22 @@ size_t inst_commitment_out_raw(FILE* stream, proof_t proof, inst_t inst, var_t v
 size_t inst_commitment_inp_raw(proof_t proof, inst_t inst, var_t var, FILE* stream) {
 	assert(is_secret(var));
 	return element_inp_raw(inst->secret_commitments[var & var_index_mask], stream);
+}
+
+size_t inst_commitments_out_raw(FILE* stream, proof_t proof, inst_t inst) {
+	int i;
+	size_t len = 0;
+	for (i = 0; i < proof->num_secret; i++) {
+		len += element_out_raw(stream, inst->secret_commitments[i]);
+	}
+	return len;
+}
+
+size_t inst_commitments_inp_raw(proof_t proof, inst_t inst, FILE* stream) {
+	int i;
+	size_t len = 0;
+	for (i = 0; i < proof->num_secret; i++) {
+		len += element_inp_raw(inst->secret_commitments[i], stream);
+	}
+	return len;
 }

@@ -1,43 +1,41 @@
 #include <assert.h>
-#include <pbc.h>
-#include "proof.h"
-#include "computation.h"
+#include "zkp.h"
+#include "zkp_internal.h"
 
-void insert_computation(proof_t proof, int is_secret, struct computation_s *c) {
+void computation_insert(proof_t proof, int is_secret, struct computation_s *computation) {
 	if (is_secret) {
 		if (proof->last_secret_computation == NULL) {
-			proof->first_secret_computation = c;
-			proof->last_secret_computation = c;
+			proof->first_secret_computation = computation;
 		} else {
-			proof->last_secret_computation->next = c;
-			proof->last_secret_computation = c;
+			proof->last_secret_computation->next = computation;
 		}
-		c->next = proof->first_public_computation;
+		proof->last_secret_computation = computation;
+		computation->next = proof->first_public_computation;
 	} else {
 		if (proof->last_public_computation == NULL) {
 			if (proof->last_secret_computation != NULL) {
-				proof->last_secret_computation->next = c;
+				proof->last_secret_computation->next = computation;
 			}
-			proof->first_public_computation = c;
-			proof->last_public_computation = c;
+			proof->first_public_computation = computation;
 		} else {
-			proof->last_public_computation->next = c;
-			proof->last_public_computation = c;
+			proof->last_public_computation->next = computation;
 		}
-		c->next = NULL;
+		proof->last_public_computation = computation;
+		computation->next = NULL;
 	}
 }
 
-void clear_computations(struct computation_s *first) {
-	struct computation_s* current = first;
+void computations_clear(proof_t proof) {
+	struct computation_s* current = proof->first_public_computation;
 	while (current != NULL) {
 		current->clear(current);
 		current = current->next;
 	}
 }
 
-void apply_computations(struct computation_s *start, struct computation_s *end,  proof_t proof, inst_t inst) {
-	struct computation_s* current = start;
+void inst_update(proof_t proof, inst_t inst) {
+	struct computation_s* current = proof->first_public_computation;
+	struct computation_s* end = (inst->secret_values != NULL) ? NULL : proof->first_secret_computation;
 	while(current != end) {
 		current->apply(current, proof, inst);
 		current = current->next;
@@ -45,46 +43,52 @@ void apply_computations(struct computation_s *start, struct computation_s *end, 
 }
 
 
-struct computation_assign_s {
+struct computation_set_s {
 	struct computation_s base;
 	var_t var;
 	mpz_t value;
 };
 
-void assign_clear(struct computation_s *c) {
-	struct computation_assign_s *self = (struct computation_assign_s*)c;
+void set_clear(struct computation_s *c) {
+	struct computation_set_s *self = (struct computation_set_s*)c;
 	mpz_clear(self->value);
 	pbc_free(self);
 };
 
-void assign_apply(struct computation_s *c, proof_t proof, inst_t inst) {
-	struct computation_assign_s *self = (struct computation_assign_s*)c;
+void set_apply(struct computation_s *c, proof_t proof, inst_t inst) {
+	struct computation_set_s *self = (struct computation_set_s*)c;
 	inst_var_set(proof, inst, self->var, self->value);
 };
 
-void compute_assign(proof_t proof, var_t var, mpz_t value) {
-	struct computation_assign_s *self = (struct computation_assign_s*)pbc_malloc(sizeof(struct computation_assign_s));
-	self->base.clear = &assign_clear;
-	self->base.apply = &assign_apply;
+void computation_set(proof_t proof, var_t var, mpz_t value) {
+	struct computation_set_s *self = (struct computation_set_s*)pbc_malloc(sizeof(struct computation_set_s));
+	self->base.clear = &set_clear;
+	self->base.apply = &set_apply;
 	self->var = var;
 	mpz_init_set(self->value, value);
-	insert_computation(proof, is_secret(var), &self->base);
+	computation_insert(proof, is_secret(var), &self->base);
+}
+
+var_t new_const(proof_t proof, mpz_t value) {
+	var_t var = new_public(proof);
+	computation_set(proof, var, value);
+	return var;
 }
 
 
-struct computation_assign_i_s {
+struct computation_set_i_s {
 	struct computation_s base;
 	var_t var;
 	long int value;
 	int is_signed;
 };
 
-void assign_i_clear(struct computation_s *c) {
+void set_i_clear(struct computation_s *c) {
 	pbc_free(c);
 };
 
-void assign_i_apply(struct computation_s *c, proof_t proof, inst_t inst) {
-	struct computation_assign_i_s *self = (struct computation_assign_i_s*)c;
+void set_i_apply(struct computation_s *c, proof_t proof, inst_t inst) {
+	struct computation_set_i_s *self = (struct computation_set_i_s*)c;
 	if (self->is_signed) {
 		inst_var_set_si(proof, inst, self->var, (signed long int)self->value);
 	} else {
@@ -92,20 +96,32 @@ void assign_i_apply(struct computation_s *c, proof_t proof, inst_t inst) {
 	}
 };
 
-void compute_assign_i(proof_t proof, var_t var, long int value, int is_signed) {
-	struct computation_assign_i_s *self = (struct computation_assign_i_s*)pbc_malloc(sizeof(struct computation_assign_i_s));
-	self->base.clear = &assign_i_clear;
-	self->base.apply = &assign_i_apply;
+void computation_set_i(proof_t proof, var_t var, long int value, int is_signed) {
+	struct computation_set_i_s *self = (struct computation_set_i_s*)pbc_malloc(sizeof(struct computation_set_i_s));
+	self->base.clear = &set_i_clear;
+	self->base.apply = &set_i_apply;
 	self->var = var;
 	self->value = value;
 	self->is_signed = is_signed;
-	insert_computation(proof, is_secret(var), &self->base);
+	computation_insert(proof, is_secret(var), &self->base);
 }
 
-void compute_assign_ui(proof_t proof, var_t var, unsigned long int value) {
-	compute_assign_i(proof, var, value, 0);
+void computation_set_ui(proof_t proof, var_t var, unsigned long int value) {
+	computation_set_i(proof, var, value, 0);
 }
 
-void compute_assign_si(proof_t proof, var_t var, signed long int value) {
-	compute_assign_i(proof, var, value, 1);
+var_t new_const_ui(proof_t proof, unsigned long int value) {
+	var_t var = new_public(proof);
+	computation_set_ui(proof, var, value);
+	return var;
+}
+
+void computation_set_si(proof_t proof, var_t var, signed long int value) {
+	computation_set_i(proof, var, value, 1);
+}
+
+var_t new_const_si(proof_t proof, signed long int value) {
+	var_t var = new_public(proof);
+	computation_set_si(proof, var, value);
+	return var;
 }

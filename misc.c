@@ -1,6 +1,6 @@
 #include <stdint.h>
-#include <pbc.h>
-#include "misc.h"
+#include "zkp.h"
+#include "zkp_internal.h"
 
 void* alloca(size_t);
 size_t element_out_raw(FILE* stream, element_t element) {

@@ -38,8 +38,7 @@ int main() {
 	// Prepare a message for the verifier (prover).
 	FILE* pmessage = fopen("message.dat", "w+b");
 	inst_var_out_raw(pmessage, proof, pinst, m);
-	inst_commitment_out_raw(pmessage, proof, pinst, p);
-	inst_commitment_out_raw(pmessage, proof, pinst, q);
+	inst_commitments_out_raw(pmessage, proof, pinst);
 	fclose(pmessage);
 	
 	// Begin reading the message (verifier).
@@ -49,23 +48,22 @@ int main() {
 	inst_t vinst;
 	inst_init_verifier(proof, vinst);
 	inst_var_inp_raw(proof, vinst, m, vmessage);
-	inst_commitment_inp_raw(proof, vinst, p, vmessage);
-	inst_commitment_inp_raw(proof, vinst, q, vmessage);
+	inst_commitments_inp_raw(proof, vinst, vmessage);
 	inst_update(proof, vinst);
 	
 	fclose(vmessage);
 	
 	printf("Values:\n");
 	gmp_printf("\tProver: P = %Zd, Q = %Zd, M = %Zd\n",
-				inst_var_get(proof, pinst, p),
-				inst_var_get(proof, pinst, q),
-				inst_var_get(proof, pinst, m));
+		inst_var_get(proof, pinst, p),
+		inst_var_get(proof, pinst, q),
+		inst_var_get(proof, pinst, m));
 				
 	gmp_printf("\tVerifier: M = %Zd\n", inst_var_get(proof, vinst, m));
 	
 	printf("Commitments:\n");
 	element_printf("\tProver:\n\t\tP = %B\n\t\tQ = %B\n",
-				pinst->secret_commitments[0], pinst->secret_commitments[1]);
+		pinst->secret_commitments[0], pinst->secret_commitments[1]);
 	element_printf("\tVerifier:\n\t\tP = %B\n\t\tQ = %B\n",
 		vinst->secret_commitments[0], vinst->secret_commitments[1]);
 	
