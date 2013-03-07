@@ -11,21 +11,21 @@ void proof_init(proof_t proof, element_t g, element_t h);
 void proof_clear(proof_t proof);
 
 // Declares a new secret variable in the given proof.
-var_t new_secret(proof_t proof);
+var_t var_secret(proof_t proof);
 
 // Declares a new public variable in the given proof.
-var_t new_public(proof_t proof);
+var_t var_public(proof_t proof);
 
 // Defines a new constant variable in the given proof.
-var_t new_const(proof_t proof, mpz_t value);
-var_t new_const_ui(proof_t proof, unsigned long int value);
-var_t new_const_si(proof_t proof, signed long int value);
+var_t var_const(proof_t proof, mpz_t value);
+var_t var_const_ui(proof_t proof, unsigned long int value);
+var_t var_const_si(proof_t proof, signed long int value);
 
 // Indicates whether the given variable is secret.
-int is_secret(var_t var);
+int var_is_secret(var_t var);
 
 // Indicates whether the given variable is public.
-int is_public(var_t var);
+int var_is_public(var_t var);
 
 // Initializes a prover instance of a proof.
 void inst_init_prover(proof_t proof, inst_t inst);

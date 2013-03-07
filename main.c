@@ -23,9 +23,9 @@ int main() {
 	proof_t proof;
 	proof_init(proof, g, h);
 	
-	var_t p = new_secret(proof);
-	var_t q = new_secret(proof);
-	var_t m = new_public(proof);
+	var_t p = var_secret(proof);
+	var_t q = var_secret(proof);
+	var_t m = var_public(proof);
 	
 	// Create an instance of the proof (prover)
 	inst_t pinst;

@@ -9,6 +9,9 @@ size_t element_out_raw(FILE* stream, element_t element);
 // read, or 0, if an error occured.
 size_t element_inp_raw(element_t element, FILE* stream);
 
+// Gets the index for the given variable.
+long var_index(var_t var);
+
 // A computational procedure for a proof that calculates the values of a subset of
 // instance variables.
 struct computation_s {
@@ -32,11 +35,9 @@ void computation_set_si(proof_t proof, var_t var, signed long int value);
 // A procedure for a proof that verifies some relation between (possibly secret) variables.
 struct block_s {
 	void (*clear)(struct block_s*);
-	void (*witness_init)(struct block_s*, proof_t, inst_t, witness_t, unsigned char*);
-	void (*witness_clear)(struct block_s*, unsigned char*);
-	void (*verify)(struct block_s*, proof_t, inst_t, witness_t, unsigned char*, mpz_t, response_t);
+	void (*generate)(struct block_s*, proof_t, inst_t, witness_t, FILE*);
+	int (*verify)(struct block_s*, proof_t, inst_t, witness_t, FILE*, challenge_t, response_t);
 	struct block_s *next;
-	size_t witness_extra_size;
 };
 
 // Inserts a block into a proof.
@@ -44,5 +45,8 @@ void block_insert(proof_t proof, struct block_s *block);
 
 // Clears all blocks in a proof.
 void blocks_clear(proof_t proof);
+
+// Inserts a block into a proof that verifies a product relationship between three secret variables.
+void block_product(proof_t proof, var_t product, var_t factor_1, var_t factor_2);
 
 #endif // ZKP_INTERNAL_H_

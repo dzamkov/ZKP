@@ -42,6 +42,11 @@ void inst_update(proof_t proof, inst_t inst) {
 	}
 }
 
+/***************************************************
+* Set
+*
+* Sets a variable to a constant value.
+****************************************************/
 
 struct computation_set_s {
 	struct computation_s base;
@@ -66,15 +71,14 @@ void computation_set(proof_t proof, var_t var, mpz_t value) {
 	self->base.apply = &set_apply;
 	self->var = var;
 	mpz_init_set(self->value, value);
-	computation_insert(proof, is_secret(var), &self->base);
+	computation_insert(proof, var_is_secret(var), &self->base);
 }
 
-var_t new_const(proof_t proof, mpz_t value) {
-	var_t var = new_public(proof);
+var_t var_const(proof_t proof, mpz_t value) {
+	var_t var = var_public(proof);
 	computation_set(proof, var, value);
 	return var;
 }
-
 
 struct computation_set_i_s {
 	struct computation_s base;
@@ -103,15 +107,15 @@ void computation_set_i(proof_t proof, var_t var, long int value, int is_signed) 
 	self->var = var;
 	self->value = value;
 	self->is_signed = is_signed;
-	computation_insert(proof, is_secret(var), &self->base);
+	computation_insert(proof, var_is_secret(var), &self->base);
 }
 
 void computation_set_ui(proof_t proof, var_t var, unsigned long int value) {
 	computation_set_i(proof, var, value, 0);
 }
 
-var_t new_const_ui(proof_t proof, unsigned long int value) {
-	var_t var = new_public(proof);
+var_t var_const_ui(proof_t proof, unsigned long int value) {
+	var_t var = var_public(proof);
 	computation_set_ui(proof, var, value);
 	return var;
 }
@@ -120,8 +124,8 @@ void computation_set_si(proof_t proof, var_t var, signed long int value) {
 	computation_set_i(proof, var, value, 1);
 }
 
-var_t new_const_si(proof_t proof, signed long int value) {
-	var_t var = new_public(proof);
+var_t var_const_si(proof_t proof, signed long int value) {
+	var_t var = var_public(proof);
 	computation_set_si(proof, var, value);
 	return var;
 }

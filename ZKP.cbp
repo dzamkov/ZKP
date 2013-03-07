@@ -36,27 +36,28 @@
 		<Compiler>
 			<Add option="-Wall" />
 		</Compiler>
-		<Unit filename="block.h" />
+		<Unit filename="block.c">
+			<Option compilerVar="CC" />
+		</Unit>
 		<Unit filename="computation.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="computation.h" />
 		<Unit filename="main.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="misc.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="misc.h" />
 		<Unit filename="proof.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="proof.h" />
 		<Unit filename="sig.c">
 			<Option compilerVar="CC" />
 		</Unit>
 		<Unit filename="sig.h" />
 		<Unit filename="zkp.h" />
+		<Unit filename="zkp_internal.h" />
+		<Unit filename="zkp_types.h" />
 		<Extensions>
 			<code_completion />
 			<debugger />

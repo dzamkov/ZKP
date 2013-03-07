@@ -85,9 +85,6 @@ struct witness_s {
 	
 	// The commitments for the randomizers. 
 	element_t *randomizer_commitments;
-	
-	// Extra block-dependent information for this witness.
-	unsigned char *extra;
 };
 typedef struct witness_s *witness_ptr;
 typedef struct witness_s witness_t[1];

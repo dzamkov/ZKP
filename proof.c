@@ -25,27 +25,31 @@ void proof_clear(proof_t proof) {
 	blocks_clear(proof);
 }
 
-static long var_secret_flag = 0x80000000;
-static long var_index_mask = 0x7FFFFFFF;
+const long VAR_SECRET_FLAG = 0x80000000;
+const long VAR_INDEX_MASK = 0x7FFFFFFF;
 
-var_t new_secret(proof_t proof) {
-	var_t var = var_secret_flag | proof->num_secret;
+var_t var_secret(proof_t proof) {
+	var_t var = VAR_SECRET_FLAG | proof->num_secret;
 	proof->num_secret++;
 	return var;
 }
 
-var_t new_public(proof_t proof) {
+var_t var_public(proof_t proof) {
 	var_t var = proof->num_public;
 	proof->num_public++;
 	return var;
 }
 
-int is_secret(var_t var) {
-	return var & var_secret_flag;
+int var_is_secret(var_t var) {
+	return var & VAR_SECRET_FLAG;
 }
 
-int is_public(var_t var) {
-	return (var & var_secret_flag) == 0;
+int var_is_public(var_t var) {
+	return (var & VAR_SECRET_FLAG) == 0;
+}
+
+long var_index(var_t var) {
+	return var & VAR_INDEX_MASK;
 }
 
 void inst_init_prover(proof_t proof, inst_t inst) {
@@ -111,44 +115,40 @@ void update_secret_commitment(proof_t proof, inst_t inst, long index) {
 }
 
 void inst_var_set(proof_t proof, inst_t inst, var_t var, mpz_t value) {
-	long index = var & var_index_mask;
-	if (is_secret(var)) {
+	if (var_is_secret(var)) {
 		assert(inst->secret_values != NULL);
-		mpz_set(inst->secret_values[index], value);
-		update_secret_commitment(proof, inst, index);
+		mpz_set(inst->secret_values[var_index(var)], value);
+		update_secret_commitment(proof, inst, var_index(var));
 	} else {
-		mpz_set(inst->public_values[index], value);
+		mpz_set(inst->public_values[var_index(var)], value);
 	}
 }
 
 void inst_var_set_ui(proof_t proof, inst_t inst, var_t var, unsigned long int value) {
-	long index = var & var_index_mask;
-	if (is_secret(var)) {
+	if (var_is_secret(var)) {
 		assert(inst->secret_values != NULL);
-		mpz_set_ui(inst->secret_values[index], value);
-		update_secret_commitment(proof, inst, index);
+		mpz_set_ui(inst->secret_values[var_index(var)], value);
+		update_secret_commitment(proof, inst, var_index(var));
 	} else {
-		mpz_set_ui(inst->public_values[index], value);
+		mpz_set_ui(inst->public_values[var_index(var)], value);
 	}
 }
 
 void inst_var_set_si(proof_t proof, inst_t inst, var_t var, signed long int value) {
-	long index = var & var_index_mask;
-	if (is_secret(var)) {
+	if (var_is_secret(var)) {
 		assert(inst->secret_values != NULL);
-		mpz_set_si(inst->secret_values[index], value);
-		update_secret_commitment(proof, inst, index);
+		mpz_set_si(inst->secret_values[var_index(var)], value);
+		update_secret_commitment(proof, inst, var_index(var));
 	} else {
-		mpz_set_si(inst->public_values[index], value);
+		mpz_set_si(inst->public_values[var_index(var)], value);
 	}
 }
 
 mpz_ptr inst_var_get(proof_t proof, inst_t inst, var_t var) {
-	long index =  var & var_index_mask;
-	if (is_secret(var)) {
+	if (var_is_secret(var)) {
 		assert(inst->secret_values != NULL);
-		return inst->secret_values[index];
-	} else return inst->public_values[index];
+		return inst->secret_values[var_index(var)];
+	} else return inst->public_values[var_index(var)];
 }
 
 size_t inst_var_out_raw(FILE* stream, proof_t proof, inst_t inst, var_t var) {
@@ -156,25 +156,24 @@ size_t inst_var_out_raw(FILE* stream, proof_t proof, inst_t inst, var_t var) {
 }
 
 size_t inst_var_inp_raw(proof_t proof, inst_t inst, var_t var, FILE* stream) {
-	long index = var & var_index_mask;
-	if (is_secret(var)) {
+	if (var_is_secret(var)) {
 		assert(inst->secret_values != NULL);
-		size_t size = mpz_inp_raw(inst->secret_values[index], stream);
-		update_secret_commitment(proof, inst, index);
+		size_t size = mpz_inp_raw(inst->secret_values[var_index(var)], stream);
+		update_secret_commitment(proof, inst, var_index(var));
 		return size;
 	} else {
-		return mpz_inp_raw(inst->public_values[index], stream);
+		return mpz_inp_raw(inst->public_values[var_index(var)], stream);
 	}
 }
 
 size_t inst_commitment_out_raw(FILE* stream, proof_t proof, inst_t inst, var_t var) {
-	assert(is_secret(var));
-	return element_out_raw(stream, inst->secret_commitments[var & var_index_mask]);
+	assert(var_is_secret(var));
+	return element_out_raw(stream, inst->secret_commitments[var_index(var)]);
 }
 
 size_t inst_commitment_inp_raw(proof_t proof, inst_t inst, var_t var, FILE* stream) {
-	assert(is_secret(var));
-	return element_inp_raw(inst->secret_commitments[var & var_index_mask], stream);
+	assert(var_is_secret(var));
+	return element_inp_raw(inst->secret_commitments[var_index(var)], stream);
 }
 
 size_t inst_commitments_out_raw(FILE* stream, proof_t proof, inst_t inst) {
