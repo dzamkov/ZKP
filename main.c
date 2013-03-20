@@ -26,8 +26,9 @@ int main() {
 	var_t p = var_secret(proof);
 	var_t q = var_secret(proof);
 	var_t m = var_public(proof);
+	block_product(proof, m, p, q);
 	
-	// Create an instance of the proof (prover)
+	// Create an instance of the proof (prover).
 	inst_t pinst;
 	inst_init_prover(proof, pinst);
 	inst_var_set_ui(proof, pinst, p, 137);
@@ -35,10 +36,14 @@ int main() {
 	inst_var_set_ui(proof, pinst, m, 17473);
 	inst_update(proof, pinst);
 	
+	// Create a witness for the proof (prover).
+	witness_t pwitness;
+	witness_init(proof, pwitness);
+	
 	// Prepare a message for the verifier (prover).
 	FILE* pmessage = fopen("message.dat", "w+b");
-	inst_var_out_raw(pmessage, proof, pinst, m);
-	inst_commitments_out_raw(pmessage, proof, pinst);
+	inst_var_write(proof, pinst, m, pmessage);
+	inst_commitments_write(proof, pinst, pmessage);
 	fclose(pmessage);
 	
 	// Begin reading the message (verifier).
@@ -47,8 +52,8 @@ int main() {
 	// Create an instance of the proof (verifier)
 	inst_t vinst;
 	inst_init_verifier(proof, vinst);
-	inst_var_inp_raw(proof, vinst, m, vmessage);
-	inst_commitments_inp_raw(proof, vinst, vmessage);
+	inst_var_read(proof, vinst, m, vmessage);
+	inst_commitments_read(proof, vinst, vmessage);
 	inst_update(proof, vinst);
 	
 	fclose(vmessage);

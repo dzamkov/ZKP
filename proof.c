@@ -15,7 +15,7 @@ void proof_init(proof_t proof, element_t g, element_t h) {
 	
 	proof->first_block = NULL;
 	proof->last_block = NULL;
-	proof->witness_extra_size = 0;
+	proof->witness_size = 0;
 }
 
 void proof_clear(proof_t proof) {
@@ -151,45 +151,30 @@ mpz_ptr inst_var_get(proof_t proof, inst_t inst, var_t var) {
 	} else return inst->public_values[var_index(var)];
 }
 
-size_t inst_var_out_raw(FILE* stream, proof_t proof, inst_t inst, var_t var) {
-	return mpz_out_raw(stream, inst_var_get(proof, inst, var));
+void inst_var_write(proof_t proof, inst_t inst, var_t var, FILE* stream) {
+	mpz_out_raw(stream, inst_var_get(proof, inst, var));
 }
 
-size_t inst_var_inp_raw(proof_t proof, inst_t inst, var_t var, FILE* stream) {
+void inst_var_read(proof_t proof, inst_t inst, var_t var, FILE* stream) {
 	if (var_is_secret(var)) {
 		assert(inst->secret_values != NULL);
-		size_t size = mpz_inp_raw(inst->secret_values[var_index(var)], stream);
+		mpz_inp_raw(inst->secret_values[var_index(var)], stream);
 		update_secret_commitment(proof, inst, var_index(var));
-		return size;
 	} else {
-		return mpz_inp_raw(inst->public_values[var_index(var)], stream);
+		mpz_inp_raw(inst->public_values[var_index(var)], stream);
 	}
 }
 
-size_t inst_commitment_out_raw(FILE* stream, proof_t proof, inst_t inst, var_t var) {
-	assert(var_is_secret(var));
-	return element_out_raw(stream, inst->secret_commitments[var_index(var)]);
-}
-
-size_t inst_commitment_inp_raw(proof_t proof, inst_t inst, var_t var, FILE* stream) {
-	assert(var_is_secret(var));
-	return element_inp_raw(inst->secret_commitments[var_index(var)], stream);
-}
-
-size_t inst_commitments_out_raw(FILE* stream, proof_t proof, inst_t inst) {
+void inst_commitments_write(proof_t proof, inst_t inst, FILE* stream) {
 	int i;
-	size_t len = 0;
 	for (i = 0; i < proof->num_secret; i++) {
-		len += element_out_raw(stream, inst->secret_commitments[i]);
+		element_out_raw(stream, inst->secret_commitments[i]);
 	}
-	return len;
 }
 
-size_t inst_commitments_inp_raw(proof_t proof, inst_t inst, FILE* stream) {
+void inst_commitments_read(proof_t proof, inst_t inst, FILE* stream) {
 	int i;
-	size_t len = 0;
 	for (i = 0; i < proof->num_secret; i++) {
-		len += element_inp_raw(inst->secret_commitments[i], stream);
+		element_inp_raw(inst->secret_commitments[i], stream);
 	}
-	return len;
 }

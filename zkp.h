@@ -46,32 +46,50 @@ void inst_var_set_si(proof_t proof, inst_t inst, var_t var, signed long int valu
 // Retrieves the value of a variable in an instance of the given proof.
 mpz_ptr inst_var_get(proof_t proof, inst_t inst, var_t var);
 
-// Outputs the value of an instance variable to a stream, returning the number of bytes that were
-// written, or 0, if an error occured.
-size_t inst_var_out_raw(FILE* stream, proof_t proof, inst_t inst, var_t var);
+// Outputs the value of an instance variable to a stream.
+void inst_var_write(proof_t proof, inst_t inst, var_t var, FILE* stream);
 
-// Reads the value of an instance variable from a stream, returning the number of bytes that were
-// read, or 0, if an error occured.
-size_t inst_var_inp_raw(proof_t proof, inst_t inst, var_t var, FILE* stream);
+// Reads the value of an instance variable from a stream.
+void inst_var_read(proof_t proof, inst_t inst, var_t var, FILE* stream);
 
 // Sets the values of computed variables in an instance.
 void inst_update(proof_t proof, inst_t inst);
 
-// Outputs the commitment for a secret instance variable to a stream, returning the number of bytes that
-// were written, or 0, if an error occured.
-size_t inst_commitment_out_raw(FILE* stream, proof_t proof, inst_t inst, var_t var);
+// Outputs all commitments for secret variables to a stream.
+void inst_commitments_write(proof_t proof, inst_t inst, FILE* stream);
 
-// Reads a commitment for a secret instance variable from a stream, returning the number of bytes that
-// were read, or 0, if an error occured.
-size_t inst_commitment_inp_raw(proof_t proof, inst_t inst, var_t var, FILE* stream);
+// Reads all commitments for secret variables from a stream.
+void inst_commitments_read(proof_t proof, inst_t inst, FILE* stream);
 
-// Outputs commitments for all secret instance variables to a stream, returning the number of bytes that
-// were written, or 0, if an error occured.
-size_t inst_commitments_out_raw(FILE* stream, proof_t proof, inst_t inst);
+// Initializes a witness for a proof.
+void witness_init(proof_t proof, witness_t witness);
 
-// Reads commitments for all secret instance variable from a stream, returning the number of bytes that
-// were read, or 0, if an error occured.
-size_t inst_commitments_inp_raw(proof_t proof, inst_t inst, FILE* stream);
+// Frees the space occupied by a witness of a proof.
+void witness_clear(proof_t proof, witness_t witness);
 
+// Generates a random claim for a witness of a proof. This is performed by the prover before
+// the challenge is known.
+void witness_claim_gen(proof_t proof, inst_t inst, witness_t witness);
+
+// Outputs the public claim information in a witness to a stream.
+void witness_claim_write(proof_t proof, witness_t witness, FILE* stream);
+
+// Reads the public claim information from a stream into a witness.
+void witness_claim_read(proof_t proof, witness_t witness, FILE* stream);
+
+// Generates a response for a witness of a proof. This is performed by the prover after the
+// challenge is known.
+void witness_reponse_gen(proof_t proof, inst_t inst, witness_t witness, challenge_t challenge);
+
+// Outputs the response information in a witness to a stream.
+void witness_response_write(proof_t proof, witness_t witness, FILE* stream);
+
+// Reads the response information from a stream into a witness.
+void witness_response_read(proof_t proof, witness_t witness, FILE* stream);
+
+// Verifies that the response information in the given witness is consistent with the given instance
+// and challenge, returning zero otherwise. This is performed by the verifier to check if a witness
+// is valid.
+int witness_response_verify(proof_t proof, inst_t inst, witness_t witness, challenge_t challenge);
 
 #endif // ZKP_H_
