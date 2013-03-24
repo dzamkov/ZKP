@@ -25,25 +25,33 @@ int main() {
 	
 	var_t p = var_secret(proof);
 	var_t q = var_secret(proof);
-	var_t m = var_public(proof);
+	var_t m = var_secret(proof);
 	block_product(proof, m, p, q);
+	
+	// Create a challenge (constant for demonstration purposes).
+	mpz_t challenge;
+	mpz_init_set_ui(challenge, 1000001);
 	
 	// Create an instance of the proof (prover).
 	inst_t pinst;
 	inst_init_prover(proof, pinst);
 	inst_var_set_ui(proof, pinst, p, 137);
 	inst_var_set_ui(proof, pinst, q, 173);
-	inst_var_set_ui(proof, pinst, m, 17473);
+	inst_var_set_ui(proof, pinst, m, 23701);
 	inst_update(proof, pinst);
 	
 	// Create a witness for the proof (prover).
 	witness_t pwitness;
 	witness_init(proof, pwitness);
+	witness_claim_gen(proof, pinst, pwitness);
+	witness_response_gen(proof, pinst, pwitness, challenge);
 	
 	// Prepare a message for the verifier (prover).
 	FILE* pmessage = fopen("message.dat", "w+b");
-	inst_var_write(proof, pinst, m, pmessage);
+	//inst_var_write(proof, pinst, m, pmessage);
 	inst_commitments_write(proof, pinst, pmessage);
+	witness_claim_write(proof, pwitness, pmessage);
+	witness_response_write(proof, pwitness, pmessage);
 	fclose(pmessage);
 	
 	// Begin reading the message (verifier).
@@ -52,25 +60,38 @@ int main() {
 	// Create an instance of the proof (verifier)
 	inst_t vinst;
 	inst_init_verifier(proof, vinst);
-	inst_var_read(proof, vinst, m, vmessage);
+	//inst_var_read(proof, vinst, m, vmessage);
 	inst_commitments_read(proof, vinst, vmessage);
 	inst_update(proof, vinst);
 	
+	// Read witness (verifier)
+	witness_t vwitness;
+	witness_init(proof, vwitness);
+	witness_claim_read(proof, vwitness, vmessage);
+	witness_response_read(proof, vwitness, vmessage);
+	
 	fclose(vmessage);
 	
+	// Debug 
 	printf("Values:\n");
 	gmp_printf("\tProver: P = %Zd, Q = %Zd, M = %Zd\n",
 		inst_var_get(proof, pinst, p),
 		inst_var_get(proof, pinst, q),
 		inst_var_get(proof, pinst, m));
 				
-	gmp_printf("\tVerifier: M = %Zd\n", inst_var_get(proof, vinst, m));
+	//gmp_printf("\tVerifier: M = %Zd\n", inst_var_get(proof, vinst, m));
 	
 	printf("Commitments:\n");
 	element_printf("\tProver:\n\t\tP = %B\n\t\tQ = %B\n",
 		pinst->secret_commitments[0], pinst->secret_commitments[1]);
 	element_printf("\tVerifier:\n\t\tP = %B\n\t\tQ = %B\n",
 		vinst->secret_commitments[0], vinst->secret_commitments[1]);
+		
+	if (witness_response_verify(proof, vinst, vwitness, challenge)) {
+		printf("Verification success.\n");
+	} else {
+		printf("Verification failure.\n");
+	}
 	
 	getchar();
 	return 0;

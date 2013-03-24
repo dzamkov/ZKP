@@ -28,6 +28,7 @@ void witness_init(proof_t proof, witness_t witness) {
 	while (current != NULL) {
 		current->witness_init(current, proof, current_witness);
 		current_witness = (void*)((unsigned char*)current_witness + current->witness_size);
+		current = current->next;
 	}
 }
 
@@ -37,6 +38,7 @@ void witness_clear(proof_t proof, witness_t witness) {
 	while (current != NULL) {
 		current->witness_clear(current, current_witness);
 		current_witness = (void*)((unsigned char*)current_witness + current->witness_size);
+		current = current->next;
 	}
 	pbc_free(*witness);
 }
@@ -47,6 +49,7 @@ void witness_claim_gen(proof_t proof, inst_t inst, witness_t witness) {
 	while (current != NULL) {
 		current->witness_claim_gen(current, current_witness, proof, inst);
 		current_witness = (void*)((unsigned char*)current_witness + current->witness_size);
+		current = current->next;
 	}
 }
 
@@ -56,6 +59,7 @@ void witness_claim_write(proof_t proof, witness_t witness, FILE* stream) {
 	while (current != NULL) {
 		current->witness_claim_write(current, current_witness, stream);
 		current_witness = (void*)((unsigned char*)current_witness + current->witness_size);
+		current = current->next;
 	}
 }
 
@@ -65,15 +69,17 @@ void witness_claim_read(proof_t proof, witness_t witness, FILE* stream) {
 	while (current != NULL) {
 		current->witness_claim_read(current, current_witness, stream);
 		current_witness = (void*)((unsigned char*)current_witness + current->witness_size);
+		current = current->next;
 	}
 }
 
-void witness_reponse_gen(proof_t proof, inst_t inst, witness_t witness, challenge_t challenge) {
+void witness_response_gen(proof_t proof, inst_t inst, witness_t witness, challenge_t challenge) {
 	struct block_s* current = proof->first_block;
 	void* current_witness = *witness;
 	while (current != NULL) {
 		current->witness_response_gen(current, current_witness, proof, inst, challenge);
 		current_witness = (void*)((unsigned char*)current_witness + current->witness_size);
+		current = current->next;
 	}
 }
 
@@ -83,6 +89,7 @@ void witness_response_write(proof_t proof, witness_t witness, FILE* stream) {
 	while (current != NULL) {
 		current->witness_response_write(current, current_witness, stream);
 		current_witness = (void*)((unsigned char*)current_witness + current->witness_size);
+		current = current->next;
 	}
 }
 
@@ -92,6 +99,7 @@ void witness_response_read(proof_t proof, witness_t witness, FILE* stream) {
 	while (current != NULL) {
 		current->witness_response_read(current, current_witness, stream);
 		current_witness = (void*)((unsigned char*)current_witness + current->witness_size);
+		current = current->next;
 	}
 }
 
@@ -102,6 +110,7 @@ int witness_response_verify(proof_t proof, inst_t inst, witness_t witness, chall
 		if (!current->witness_response_verify(current, current_witness, proof, inst, challenge))
 			return 0;
 		current_witness = (void*)((unsigned char*)current_witness + current->witness_size);
+		current = current->next;
 	}
 	return 1;
 }
@@ -138,12 +147,16 @@ void var_witness_init(proof_t proof, var_witness_t witness) {
 	mpz_init(witness->randomizer_value);
 	mpz_init(witness->randomizer_opening);
 	element_init_same_as(witness->randomizer_commitment, proof->g);
+	mpz_init(witness->boxed_value);
+	mpz_init(witness->boxed_opening);
 }
 
 void var_witness_clear(var_witness_t witness) {
 	mpz_clear(witness->randomizer_value);
 	mpz_clear(witness->randomizer_opening);
 	element_clear(witness->randomizer_commitment);
+	mpz_clear(witness->boxed_value);
+	mpz_clear(witness->boxed_opening);
 }
 
 void var_witness_claim_gen(proof_t proof, var_witness_t witness) {
@@ -165,8 +178,10 @@ void var_witness_claim_read(var_witness_t witness, FILE* stream) {
 void var_witness_response_gen(proof_t proof, var_witness_t witness, challenge_t challenge, mpz_t value, mpz_t opening) {
 	mpz_mul(witness->boxed_value, challenge, value);
 	mpz_add(witness->boxed_value, witness->boxed_value, witness->randomizer_value);
+	mpz_mod(witness->boxed_value, witness->boxed_value, proof->g->field->order);
 	mpz_mul(witness->boxed_opening, challenge, opening);
 	mpz_add(witness->boxed_opening, witness->boxed_opening, witness->randomizer_opening);
+	mpz_mod(witness->boxed_opening, witness->boxed_opening, proof->g->field->order);
 }
 
 void var_witness_response_write(var_witness_t witness, FILE* stream) {
@@ -177,6 +192,20 @@ void var_witness_response_write(var_witness_t witness, FILE* stream) {
 void var_witness_response_read(var_witness_t witness, FILE* stream) {
 	mpz_inp_raw(witness->boxed_value, stream);
 	mpz_inp_raw(witness->boxed_opening, stream);
+}
+
+int var_witness_response_verify(proof_t proof, var_witness_t witness, challenge_t challenge, element_t commitment) {
+	element_t left; element_init_same_as(left, proof->g);
+	element_t right; element_init_same_as(right, proof->g);
+	
+	element_pow_mpz(left, commitment, challenge);
+	element_add(left, left, witness->randomizer_commitment);
+	element_pow2_mpz(right, proof->g, witness->boxed_value, proof->h, witness->boxed_opening);
+	int result = element_cmp(left, right);
+	
+	element_clear(left);
+	element_clear(right);
+	return !result;
 }
 
 /***************************************************
@@ -232,11 +261,13 @@ void product_witness_claim_gen(struct block_s* block, void* witness, proof_t pro
 	var_witness_claim_gen(proof, self_witness->factor_2);
 	mpz_mul(self_witness->product->randomizer_value, self_witness->factor_1->randomizer_value, inst->secret_values[self->factor_2_index]);
 	mpz_addmul(self_witness->product->randomizer_value, self_witness->factor_2->randomizer_value, inst->secret_values[self->factor_1_index]);
+	mpz_mod(self_witness->product->randomizer_value, self_witness->product->randomizer_value, proof->g->field->order);
 	pbc_mpz_random(self_witness->product->randomizer_opening, proof->g->field->order);
 	element_pow2_mpz(self_witness->product->randomizer_commitment,
 		proof->g, self_witness->product->randomizer_value,
 		proof->h, self_witness->product->randomizer_opening);
 	mpz_mul(self_witness->k, self_witness->factor_1->randomizer_value, self_witness->factor_2->randomizer_value);
+	mpz_mod(self_witness->k, self_witness->k, proof->g->field->order);
 }
 
 void product_witness_claim_write(struct block_s* block, void* witness, FILE* stream) {
@@ -277,6 +308,23 @@ void product_witness_response_read(struct block_s* block, void* witness, FILE* s
 	var_witness_response_read(self_witness->product, stream);
 }
 
+int product_witness_response_verify(struct block_s* block, void* witness, proof_t proof, inst_t inst, challenge_t challenge) {
+	struct block_product_s *self = (struct block_product_s*)block;
+	struct block_product_witness_s *self_witness = (struct block_product_witness_s*)witness;
+	if (var_witness_response_verify(proof, self_witness->factor_1, challenge, inst->secret_commitments[self->factor_1_index]) &&
+	    var_witness_response_verify(proof, self_witness->factor_2, challenge, inst->secret_commitments[self->factor_2_index]) &&
+	    var_witness_response_verify(proof, self_witness->product, challenge, inst->secret_commitments[self->product_index]))
+	{
+		mpz_t temp; 
+		mpz_init_set(temp, self_witness->k);
+		mpz_addmul(temp, challenge, self_witness->product->boxed_value);
+		mpz_submul(temp, self_witness->factor_1->boxed_value, self_witness->factor_2->boxed_value);
+		int result = mpz_divisible_p(temp, proof->g->field->order);
+		mpz_clear(temp);
+		return result;
+	} else return 0;
+}
+
 void block_product(proof_t proof, var_t product, var_t factor_1, var_t factor_2) {
 	struct block_product_s *self = (struct block_product_s*)pbc_malloc(sizeof(struct block_product_s));
 	self->base.clear = &product_clear;
@@ -288,6 +336,10 @@ void block_product(proof_t proof, var_t product, var_t factor_1, var_t factor_2)
 	self->base.witness_response_gen = &product_witness_response_gen;
 	self->base.witness_response_write = &product_witness_response_write;
 	self->base.witness_response_read = &product_witness_response_read;
+	self->base.witness_response_verify = &product_witness_response_verify;
 	self->base.witness_size = sizeof(struct block_product_witness_s);
+	self->factor_1_index = var_index(factor_1);
+	self->factor_2_index = var_index(factor_2);
+	self->product_index = var_index(product);
 	block_insert(proof, &self->base);
 }

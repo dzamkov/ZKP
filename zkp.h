@@ -79,7 +79,7 @@ void witness_claim_read(proof_t proof, witness_t witness, FILE* stream);
 
 // Generates a response for a witness of a proof. This is performed by the prover after the
 // challenge is known.
-void witness_reponse_gen(proof_t proof, inst_t inst, witness_t witness, challenge_t challenge);
+void witness_response_gen(proof_t proof, inst_t inst, witness_t witness, challenge_t challenge);
 
 // Outputs the response information in a witness to a stream.
 void witness_response_write(proof_t proof, witness_t witness, FILE* stream);
