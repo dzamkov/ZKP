@@ -51,12 +51,12 @@ void inst_update(proof_t proof, inst_t inst) {
 struct computation_set_s {
 	struct computation_s base;
 	var_t var;
-	mpz_t value;
+	element_t value;
 };
 
 void set_clear(struct computation_s *c) {
 	struct computation_set_s *self = (struct computation_set_s*)c;
-	mpz_clear(self->value);
+	element_clear(self->value);
 	pbc_free(self);
 };
 
@@ -65,66 +65,44 @@ void set_apply(struct computation_s *c, proof_t proof, inst_t inst) {
 	inst_var_set(proof, inst, self->var, self->value);
 };
 
-void computation_set(proof_t proof, var_t var, mpz_t value) {
+struct computation_set_s* computation_set_base(proof_t proof, var_t var) {
 	struct computation_set_s *self = (struct computation_set_s*)pbc_malloc(sizeof(struct computation_set_s));
 	self->base.clear = &set_clear;
 	self->base.apply = &set_apply;
 	self->var = var;
-	mpz_init_set(self->value, value);
+	element_init(self->value, proof->Z);
 	computation_insert(proof, var_is_secret(var), &self->base);
+	return self;
 }
 
-var_t var_const(proof_t proof, mpz_t value) {
+void computation_set(proof_t proof, var_t var, element_t value) {
+	struct computation_set_s *self = computation_set_base(proof, var);
+	element_set(self->value, value);
+}
+
+var_t var_const(proof_t proof, element_t value) {
 	var_t var = var_public(proof);
 	computation_set(proof, var, value);
 	return var;
 }
 
-struct computation_set_i_s {
-	struct computation_s base;
-	var_t var;
-	long int value;
-	int is_signed;
-};
-
-void set_i_clear(struct computation_s *c) {
-	pbc_free(c);
-};
-
-void set_i_apply(struct computation_s *c, proof_t proof, inst_t inst) {
-	struct computation_set_i_s *self = (struct computation_set_i_s*)c;
-	if (self->is_signed) {
-		inst_var_set_si(proof, inst, self->var, (signed long int)self->value);
-	} else {
-		inst_var_set_ui(proof, inst, self->var, (unsigned long int)self->value);
-	}
-};
-
-void computation_set_i(proof_t proof, var_t var, long int value, int is_signed) {
-	struct computation_set_i_s *self = (struct computation_set_i_s*)pbc_malloc(sizeof(struct computation_set_i_s));
-	self->base.clear = &set_i_clear;
-	self->base.apply = &set_i_apply;
-	self->var = var;
-	self->value = value;
-	self->is_signed = is_signed;
-	computation_insert(proof, var_is_secret(var), &self->base);
+void computation_set_mpz(proof_t proof, var_t var, mpz_t value) {
+	struct computation_set_s *self = computation_set_base(proof, var);
+	element_set_mpz(self->value, value);
 }
 
-void computation_set_ui(proof_t proof, var_t var, unsigned long int value) {
-	computation_set_i(proof, var, value, 0);
-}
-
-var_t var_const_ui(proof_t proof, unsigned long int value) {
+var_t var_const_mpz(proof_t proof, mpz_t value) {
 	var_t var = var_public(proof);
-	computation_set_ui(proof, var, value);
+	computation_set_mpz(proof, var, value);
 	return var;
 }
 
-void computation_set_si(proof_t proof, var_t var, signed long int value) {
-	computation_set_i(proof, var, value, 1);
+void computation_set_si(proof_t proof, var_t var, long int value) {
+	struct computation_set_s *self = computation_set_base(proof, var);
+	element_set_si(self->value, value);
 }
 
-var_t var_const_si(proof_t proof, signed long int value) {
+var_t var_const_si(proof_t proof, long int value) {
 	var_t var = var_public(proof);
 	computation_set_si(proof, var, value);
 	return var;

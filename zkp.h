@@ -5,7 +5,7 @@
 #include "zkp_types.h"
 
 // Initializes a proof, setting it to a default empty state.
-void proof_init(proof_t proof, element_t g, element_t h);
+void proof_init(proof_t proof, field_ptr Z, field_ptr G, element_t g, element_t h);
 
 // Frees the space occupied by a proof.
 void proof_clear(proof_t proof);
@@ -17,9 +17,9 @@ var_t var_secret(proof_t proof);
 var_t var_public(proof_t proof);
 
 // Defines a new constant variable in the given proof.
-var_t var_const(proof_t proof, mpz_t value);
-var_t var_const_ui(proof_t proof, unsigned long int value);
-var_t var_const_si(proof_t proof, signed long int value);
+var_t var_const(proof_t proof, element_t value);
+var_t var_const_mpz(proof_t proof, mpz_t value);
+var_t var_const_si(proof_t proof, long int value);
 
 // Indicates whether the given variable is secret.
 int var_is_secret(var_t var);
@@ -39,12 +39,12 @@ void inst_clear(proof_t proof, inst_t inst);
 // Sets the value of a variable in an instance of a proof. If the variable is
 // secret, a random opening and corresponding commitment will automatically be
 // generated.
-void inst_var_set(proof_t proof, inst_t inst, var_t var, mpz_t value);
-void inst_var_set_ui(proof_t proof, inst_t inst, var_t var, unsigned long int value);
-void inst_var_set_si(proof_t proof, inst_t inst, var_t var, signed long int value);
+void inst_var_set(proof_t proof, inst_t inst, var_t var, element_t value);
+void inst_var_set_mpz(proof_t proof, inst_t inst, var_t var, mpz_t value);
+void inst_var_set_si(proof_t proof, inst_t inst, var_t var, long int value);
 
 // Retrieves the value of a variable in an instance of the given proof.
-mpz_ptr inst_var_get(proof_t proof, inst_t inst, var_t var);
+element_ptr inst_var_get(proof_t proof, inst_t inst, var_t var);
 
 // Outputs the value of an instance variable to a stream.
 void inst_var_write(proof_t proof, inst_t inst, var_t var, FILE* stream);

@@ -13,12 +13,17 @@ struct proof_s {
 	// The number of public variables in this proof.
 	int num_public;
 	
+	// The (integer) field that contains the elements used for values in this proof.
+	field_ptr Z;
+	
+	// The field that contains the elements used for commitments in this proof.
+	field_ptr G;
+	
 	// The g element for this proof, used for computing commitments.
 	element_t g;
 	
 	// The h element for this proof, used for computing commitments.
 	element_t h;
-	
 	
 	// The first public computation for this proof.
 	struct computation_s *first_public_computation;
@@ -56,17 +61,17 @@ typedef unsigned long var_t;
 struct inst_s {
 	
 	// The values of the secret variables. This will be NULL for the verifier.
-	mpz_t *secret_values;
+	element_t *secret_values;
 	
 	// The openings for the secret variables. This will be NULL for the verifier.
-	mpz_t *secret_openings;
+	element_t *secret_openings;
 	
 	// The commitments for the secret variables. The verifier must get these from the
 	// prover.
 	element_t *secret_commitments;
 	
 	// The values of the public variables.
-	mpz_t *public_values;
+	element_t *public_values;
 };
 typedef struct inst_s *inst_ptr;
 typedef struct inst_s inst_t[1];
@@ -77,6 +82,6 @@ typedef void* witness_t[1];
 
 // A challenge that demonstrates an instance/witness pair is probably consistent when a 
 // correct response is given.
-typedef mpz_t challenge_t;
+typedef element_t challenge_t;
 
 #endif // ZKP_TYPES_H_

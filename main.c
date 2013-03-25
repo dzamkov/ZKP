@@ -21,7 +21,7 @@ int main() {
 	
 	// Describe proof (prover and verifier).
 	proof_t proof;
-	proof_init(proof, g, h);
+	proof_init(proof, pairing->Zr, pairing->G1, g, h);
 	
 	var_t p = var_secret(proof);
 	var_t q = var_secret(proof);
@@ -29,15 +29,16 @@ int main() {
 	block_product(proof, m, p, q);
 	
 	// Create a challenge (constant for demonstration purposes).
-	mpz_t challenge;
-	mpz_init_set_ui(challenge, 1000001);
+	element_t challenge;
+	element_init(challenge, proof->Z);
+	element_set_si(challenge, 1000001);
 	
 	// Create an instance of the proof (prover).
 	inst_t pinst;
 	inst_init_prover(proof, pinst);
-	inst_var_set_ui(proof, pinst, p, 137);
-	inst_var_set_ui(proof, pinst, q, 173);
-	inst_var_set_ui(proof, pinst, m, 23701);
+	inst_var_set_si(proof, pinst, p, 137);
+	inst_var_set_si(proof, pinst, q, 173);
+	inst_var_set_si(proof, pinst, m, 23701);
 	inst_update(proof, pinst);
 	
 	// Create a witness for the proof (prover).
@@ -72,21 +73,7 @@ int main() {
 	
 	fclose(vmessage);
 	
-	// Debug 
-	printf("Values:\n");
-	gmp_printf("\tProver: P = %Zd, Q = %Zd, M = %Zd\n",
-		inst_var_get(proof, pinst, p),
-		inst_var_get(proof, pinst, q),
-		inst_var_get(proof, pinst, m));
-				
-	//gmp_printf("\tVerifier: M = %Zd\n", inst_var_get(proof, vinst, m));
-	
-	printf("Commitments:\n");
-	element_printf("\tProver:\n\t\tP = %B\n\t\tQ = %B\n",
-		pinst->secret_commitments[0], pinst->secret_commitments[1]);
-	element_printf("\tVerifier:\n\t\tP = %B\n\t\tQ = %B\n",
-		vinst->secret_commitments[0], vinst->secret_commitments[1]);
-		
+	// Verify (verifier).	
 	if (witness_response_verify(proof, vinst, vwitness, challenge)) {
 		printf("Verification success.\n");
 	} else {

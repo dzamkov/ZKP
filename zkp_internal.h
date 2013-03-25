@@ -27,9 +27,9 @@ void computation_insert(proof_t proof, int is_secret, struct computation_s *comp
 void computations_clear(proof_t proof);
 
 // Inserts a computation into a proof that assigns a constant value to a variable.
-void computation_set(proof_t proof, var_t var, mpz_t value);
-void computation_set_ui(proof_t proof, var_t var, unsigned long int value);
-void computation_set_si(proof_t proof, var_t var, signed long int value);
+void computation_set(proof_t proof, var_t var, element_t value);
+void computation_set_mpz(proof_t proof, var_t var, mpz_t value);
+void computation_set_si(proof_t proof, var_t var, long int value);
 
 // A procedure for a proof that verifies some relation between (possibly secret) variables.
 struct block_s {

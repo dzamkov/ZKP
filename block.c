@@ -117,11 +117,11 @@ int witness_response_verify(proof_t proof, inst_t inst, witness_t witness, chall
 
 // Contains witness information for a secret variable. 
 struct var_witness_s {
-	mpz_t randomizer_value;
-	mpz_t randomizer_opening;
+	element_t randomizer_value;
+	element_t randomizer_opening;
 	element_t randomizer_commitment;
-	mpz_t boxed_value;
-	mpz_t boxed_opening;
+	element_t boxed_value;
+	element_t boxed_opening;
 };
 typedef struct var_witness_s var_witness_t[1];
 
@@ -144,25 +144,25 @@ typedef struct var_witness_s var_witness_t[1];
 // (C_X) ^ e * (r_C_X)	= (g ^ [X])(h ^ [o_X])
 
 void var_witness_init(proof_t proof, var_witness_t witness) {
-	mpz_init(witness->randomizer_value);
-	mpz_init(witness->randomizer_opening);
-	element_init_same_as(witness->randomizer_commitment, proof->g);
-	mpz_init(witness->boxed_value);
-	mpz_init(witness->boxed_opening);
+	element_init(witness->randomizer_value, proof->Z);
+	element_init(witness->randomizer_opening, proof->Z);
+	element_init(witness->randomizer_commitment, proof->G);
+	element_init(witness->boxed_value, proof->Z);
+	element_init(witness->boxed_opening, proof->Z);
 }
 
 void var_witness_clear(var_witness_t witness) {
-	mpz_clear(witness->randomizer_value);
-	mpz_clear(witness->randomizer_opening);
+	element_clear(witness->randomizer_value);
+	element_clear(witness->randomizer_opening);
 	element_clear(witness->randomizer_commitment);
-	mpz_clear(witness->boxed_value);
-	mpz_clear(witness->boxed_opening);
+	element_clear(witness->boxed_value);
+	element_clear(witness->boxed_opening);
 }
 
 void var_witness_claim_gen(proof_t proof, var_witness_t witness) {
-	pbc_mpz_random(witness->randomizer_value, proof->g->field->order);
-	pbc_mpz_random(witness->randomizer_opening, proof->g->field->order);
-	element_pow2_mpz(witness->randomizer_commitment,
+	element_random(witness->randomizer_value);
+	element_random(witness->randomizer_opening);
+	element_pow2_zn(witness->randomizer_commitment,
 		proof->g, witness->randomizer_value,
 		proof->h, witness->randomizer_opening);
 }
@@ -175,37 +175,35 @@ void var_witness_claim_read(var_witness_t witness, FILE* stream) {
 	element_inp_raw(witness->randomizer_commitment, stream);
 }
 
-void var_witness_response_gen(proof_t proof, var_witness_t witness, challenge_t challenge, mpz_t value, mpz_t opening) {
-	mpz_mul(witness->boxed_value, challenge, value);
-	mpz_add(witness->boxed_value, witness->boxed_value, witness->randomizer_value);
-	mpz_mod(witness->boxed_value, witness->boxed_value, proof->g->field->order);
-	mpz_mul(witness->boxed_opening, challenge, opening);
-	mpz_add(witness->boxed_opening, witness->boxed_opening, witness->randomizer_opening);
-	mpz_mod(witness->boxed_opening, witness->boxed_opening, proof->g->field->order);
+void var_witness_response_gen(proof_t proof, var_witness_t witness, challenge_t challenge, element_t value, element_t opening) {
+	element_mul(witness->boxed_value, challenge, value);
+	element_add(witness->boxed_value, witness->boxed_value, witness->randomizer_value);
+	element_mul(witness->boxed_opening, challenge, opening);
+	element_add(witness->boxed_opening, witness->boxed_opening, witness->randomizer_opening);
 }
 
 void var_witness_response_write(var_witness_t witness, FILE* stream) {
-	mpz_out_raw(stream, witness->boxed_value);
-	mpz_out_raw(stream, witness->boxed_opening);
+	element_out_raw(stream, witness->boxed_value);
+	element_out_raw(stream, witness->boxed_opening);
 }
 
 void var_witness_response_read(var_witness_t witness, FILE* stream) {
-	mpz_inp_raw(witness->boxed_value, stream);
-	mpz_inp_raw(witness->boxed_opening, stream);
+	element_inp_raw(witness->boxed_value, stream);
+	element_inp_raw(witness->boxed_opening, stream);
 }
 
 int var_witness_response_verify(proof_t proof, var_witness_t witness, challenge_t challenge, element_t commitment) {
-	element_t left; element_init_same_as(left, proof->g);
-	element_t right; element_init_same_as(right, proof->g);
+	element_t left; element_init(left, proof->G);
+	element_t right; element_init(right, proof->G);
 	
-	element_pow_mpz(left, commitment, challenge);
-	element_add(left, left, witness->randomizer_commitment);
-	element_pow2_mpz(right, proof->g, witness->boxed_value, proof->h, witness->boxed_opening);
-	int result = element_cmp(left, right);
+	element_pow_zn(left, commitment, challenge);
+	element_mul(left, left, witness->randomizer_commitment);
+	element_pow2_zn(right, proof->g, witness->boxed_value, proof->h, witness->boxed_opening);
+	int result = !element_cmp(left, right);
 	
 	element_clear(left);
 	element_clear(right);
-	return !result;
+	return result;
 }
 
 /***************************************************
@@ -226,7 +224,7 @@ struct block_product_witness_s {
 	var_witness_t factor_1;	// F_1
 	var_witness_t factor_2;	// F_2
 	var_witness_t product;	// P
-	mpz_t k;
+	element_t k;
 };
 
 // k       	= r_F_1 * r_F_2
@@ -243,7 +241,7 @@ void product_witness_init(struct block_s* block, proof_t proof, void* witness) {
 	var_witness_init(proof, self_witness->factor_1);
 	var_witness_init(proof, self_witness->factor_2);
 	var_witness_init(proof, self_witness->product);
-	mpz_init(self_witness->k);
+	element_init(self_witness->k, proof->Z);
 }
 
 void product_witness_clear(struct block_s* block, void* witness) {
@@ -251,7 +249,7 @@ void product_witness_clear(struct block_s* block, void* witness) {
 	var_witness_clear(self_witness->factor_1);
 	var_witness_clear(self_witness->factor_2);
 	var_witness_clear(self_witness->product);
-	mpz_clear(self_witness->k);
+	element_clear(self_witness->k);
 }
 
 void product_witness_claim_gen(struct block_s* block, void* witness, proof_t proof, inst_t inst) {
@@ -259,15 +257,16 @@ void product_witness_claim_gen(struct block_s* block, void* witness, proof_t pro
 	struct block_product_witness_s *self_witness = (struct block_product_witness_s*)witness;
 	var_witness_claim_gen(proof, self_witness->factor_1);
 	var_witness_claim_gen(proof, self_witness->factor_2);
-	mpz_mul(self_witness->product->randomizer_value, self_witness->factor_1->randomizer_value, inst->secret_values[self->factor_2_index]);
-	mpz_addmul(self_witness->product->randomizer_value, self_witness->factor_2->randomizer_value, inst->secret_values[self->factor_1_index]);
-	mpz_mod(self_witness->product->randomizer_value, self_witness->product->randomizer_value, proof->g->field->order);
-	pbc_mpz_random(self_witness->product->randomizer_opening, proof->g->field->order);
-	element_pow2_mpz(self_witness->product->randomizer_commitment,
+	element_t temp; element_init(temp, proof->Z);
+	element_mul(self_witness->product->randomizer_value, self_witness->factor_1->randomizer_value, inst->secret_values[self->factor_2_index]);
+	element_mul(temp, self_witness->factor_2->randomizer_value, inst->secret_values[self->factor_1_index]);
+	element_add(self_witness->product->randomizer_value, self_witness->product->randomizer_value, temp);
+	element_random(self_witness->product->randomizer_opening);
+	element_pow2_zn(self_witness->product->randomizer_commitment,
 		proof->g, self_witness->product->randomizer_value,
 		proof->h, self_witness->product->randomizer_opening);
-	mpz_mul(self_witness->k, self_witness->factor_1->randomizer_value, self_witness->factor_2->randomizer_value);
-	mpz_mod(self_witness->k, self_witness->k, proof->g->field->order);
+	element_mul(self_witness->k, self_witness->factor_1->randomizer_value, self_witness->factor_2->randomizer_value);
+	element_clear(temp);
 }
 
 void product_witness_claim_write(struct block_s* block, void* witness, FILE* stream) {
@@ -275,7 +274,7 @@ void product_witness_claim_write(struct block_s* block, void* witness, FILE* str
 	var_witness_claim_write(self_witness->factor_1, stream);
 	var_witness_claim_write(self_witness->factor_2, stream);
 	var_witness_claim_write(self_witness->product, stream);
-	mpz_out_raw(stream, self_witness->k);
+	element_out_raw(stream, self_witness->k);
 }
 
 void product_witness_claim_read(struct block_s* block, void* witness, FILE* stream) {
@@ -283,7 +282,7 @@ void product_witness_claim_read(struct block_s* block, void* witness, FILE* stre
 	var_witness_claim_read(self_witness->factor_1, stream);
 	var_witness_claim_read(self_witness->factor_2, stream);
 	var_witness_claim_read(self_witness->product, stream);
-	mpz_inp_raw(self_witness->k, stream);
+	element_inp_raw(self_witness->k, stream);
 }
 
 void product_witness_response_gen(struct block_s* block, void* witness, proof_t proof, inst_t inst, challenge_t challenge) {
@@ -315,12 +314,14 @@ int product_witness_response_verify(struct block_s* block, void* witness, proof_
 	    var_witness_response_verify(proof, self_witness->factor_2, challenge, inst->secret_commitments[self->factor_2_index]) &&
 	    var_witness_response_verify(proof, self_witness->product, challenge, inst->secret_commitments[self->product_index]))
 	{
-		mpz_t temp; 
-		mpz_init_set(temp, self_witness->k);
-		mpz_addmul(temp, challenge, self_witness->product->boxed_value);
-		mpz_submul(temp, self_witness->factor_1->boxed_value, self_witness->factor_2->boxed_value);
-		int result = mpz_divisible_p(temp, proof->g->field->order);
-		mpz_clear(temp);
+		element_t left; element_init(left, proof->Z);
+		element_t right; element_init(right, proof->Z);
+		element_mul(left, challenge, self_witness->product->boxed_value);
+		element_add(left, left, self_witness->k);
+		element_mul(right, self_witness->factor_1->boxed_value, self_witness->factor_2->boxed_value);
+		int result = !element_cmp(left, right);
+		element_clear(left);
+		element_clear(right);
 		return result;
 	} else return 0;
 }
