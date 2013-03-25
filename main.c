@@ -25,8 +25,8 @@ int main() {
 	
 	var_t p = var_secret(proof);
 	var_t q = var_secret(proof);
-	var_t m = var_secret(proof);
-	block_product(proof, m, p, q);
+	var_t m = var_public(proof);
+	require_mul(proof, m, p, q);
 	
 	// Create a challenge (constant for demonstration purposes).
 	element_t challenge;
@@ -49,7 +49,7 @@ int main() {
 	
 	// Prepare a message for the verifier (prover).
 	FILE* pmessage = fopen("message.dat", "w+b");
-	//inst_var_write(proof, pinst, m, pmessage);
+	inst_var_write(proof, pinst, m, pmessage);
 	inst_commitments_write(proof, pinst, pmessage);
 	witness_claim_write(proof, pwitness, pmessage);
 	witness_response_write(proof, pwitness, pmessage);
@@ -61,7 +61,7 @@ int main() {
 	// Create an instance of the proof (verifier)
 	inst_t vinst;
 	inst_init_verifier(proof, vinst);
-	//inst_var_read(proof, vinst, m, vmessage);
+	inst_var_read(proof, vinst, m, vmessage);
 	inst_commitments_read(proof, vinst, vmessage);
 	inst_update(proof, vinst);
 	
@@ -70,7 +70,6 @@ int main() {
 	witness_init(proof, vwitness);
 	witness_claim_read(proof, vwitness, vmessage);
 	witness_response_read(proof, vwitness, vmessage);
-	
 	fclose(vmessage);
 	
 	// Verify (verifier).	

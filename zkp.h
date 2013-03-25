@@ -21,6 +21,9 @@ var_t var_const(proof_t proof, element_t value);
 var_t var_const_mpz(proof_t proof, mpz_t value);
 var_t var_const_si(proof_t proof, long int value);
 
+// Requires a multiplicative relationship between the given product and factor variables in the given proof.
+void require_mul(proof_t proof, var_t product, var_t factor_1, var_t factor_2);
+
 // Indicates whether the given variable is secret.
 int var_is_secret(var_t var);
 

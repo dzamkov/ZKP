@@ -10,13 +10,9 @@ void proof_init(proof_t proof, field_ptr Z, field_ptr G, element_t g, element_t 
 	element_init(proof->g, G); element_set(proof->g, g);
 	element_init(proof->h, G); element_set(proof->h, h);
 	
-	proof->first_public_computation = NULL;
-	proof->last_public_computation = NULL;
-	proof->first_secret_computation = NULL;
-	proof->last_secret_computation = NULL;
-	
+	proof->first_computation = NULL;
+	proof->last_computation = NULL;
 	proof->first_block = NULL;
-	proof->last_block = NULL;
 	proof->witness_size = 0;
 }
 
@@ -52,6 +48,17 @@ int var_is_public(var_t var) {
 
 long var_index(var_t var) {
 	return var & VAR_INDEX_MASK;
+}
+
+var_t var_secret_for(proof_t proof, var_t var) {
+	if (var_is_secret(var)) {
+		return var;
+	} else {
+		var_t mirror = var_secret(proof);
+		computation_mov(proof, mirror, var);
+		block_equals_sp(proof, mirror, var);
+		return mirror;
+	}
 }
 
 void inst_init_prover(proof_t proof, inst_t inst) {

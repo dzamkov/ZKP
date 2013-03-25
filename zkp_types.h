@@ -25,26 +25,14 @@ struct proof_s {
 	// The h element for this proof, used for computing commitments.
 	element_t h;
 	
-	// The first public computation for this proof.
-	struct computation_s *first_public_computation;
+	// The first computation for this proof.
+	struct computation_s *first_computation;
 	
-	// The last public computation for this proof. 
-	struct computation_s *last_public_computation;
-	
-	// The first secret computation for this proof. (Note that secret computations
-	// always occur after public computations because the result of a public computation
-	// can never depend on the result of a secret computation)
-	struct computation_s *first_secret_computation;
-	
-	// The last secret computatino for this proof.
-	struct computation_s *last_secret_computation;
-	
+	// The last computation for this proof.
+	struct computation_s *last_computation;
 	
 	// The first block for this proof.
 	struct block_s *first_block;
-	
-	// The last block for this proof.
-	struct block_s *last_block;
 	
 	// The total size of a witness for this proof.
 	size_t witness_size;

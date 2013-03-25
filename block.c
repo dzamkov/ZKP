@@ -3,14 +3,9 @@
 #include "zkp_internal.h"
 
 void block_insert(proof_t proof, struct block_s *block) {
-	if (proof->last_block == NULL) {
-		proof->first_block = block;
-	} else {
-		proof->last_block->next = block;
-	}
-	proof->last_block = block;
+	block->next = proof->first_block;
+	proof->first_block = block;
 	proof->witness_size += block->witness_size;
-	block->next = NULL;
 }
 
 void blocks_clear(proof_t proof) {
@@ -207,7 +202,7 @@ int var_witness_response_verify(proof_t proof, var_witness_t witness, challenge_
 }
 
 /***************************************************
-* Product
+* product
 *
 * Verifies that the product of two secret variables
 * is equivalent to a third.
@@ -342,5 +337,110 @@ void block_product(proof_t proof, var_t product, var_t factor_1, var_t factor_2)
 	self->factor_1_index = var_index(factor_1);
 	self->factor_2_index = var_index(factor_2);
 	self->product_index = var_index(product);
+	block_insert(proof, &self->base);
+}
+
+void require_mul(proof_t proof, var_t product, var_t factor_1, var_t factor_2) {
+	block_product(proof,
+		var_secret_for(proof, product),
+		var_secret_for(proof, factor_1),
+		var_secret_for(proof, factor_2));
+}
+
+/***************************************************
+* equals_sp
+*
+* Verifies that a secret variable is equivalent to
+* a public variable.
+****************************************************/
+
+struct block_equals_sp_s {
+	struct block_s base;
+	long secret_index;
+	long public_index;
+};
+
+struct block_equals_sp_witness_s {
+	var_witness_t secret; // S
+};
+
+// r_S	= 0
+// [S]	= eP
+
+void equals_sp_clear(struct block_s* block) {
+	struct block_equals_sp_s *self = (struct block_equals_sp_s*)block;
+	pbc_free(self);
+}
+
+void equals_sp_witness_init(struct block_s* block, proof_t proof, void* witness) {
+	struct block_equals_sp_witness_s *self_witness = (struct block_equals_sp_witness_s*)witness;
+	var_witness_init(proof, self_witness->secret);
+}
+
+void equals_sp_witness_clear(struct block_s* block, void* witness) {
+	struct block_equals_sp_witness_s *self_witness = (struct block_equals_sp_witness_s*)witness;
+	var_witness_clear(self_witness->secret);
+}
+
+void equals_sp_witness_claim_gen(struct block_s* block, void* witness, proof_t proof, inst_t inst) {
+	struct block_equals_sp_witness_s *self_witness = (struct block_equals_sp_witness_s*)witness;
+	element_set0(self_witness->secret->randomizer_value);
+	element_random(self_witness->secret->randomizer_opening);
+	element_pow_zn(self_witness->secret->randomizer_commitment, proof->h, self_witness->secret->randomizer_opening);
+}
+
+void equals_sp_witness_claim_write(struct block_s* block, void* witness, FILE* stream) {
+	struct block_equals_sp_witness_s *self_witness = (struct block_equals_sp_witness_s*)witness;
+	var_witness_claim_write(self_witness->secret, stream);
+}
+
+void equals_sp_witness_claim_read(struct block_s* block, void* witness, FILE* stream) {
+	struct block_equals_sp_witness_s *self_witness = (struct block_equals_sp_witness_s*)witness;
+	var_witness_claim_read(self_witness->secret, stream);
+}
+
+void equals_sp_witness_response_gen(struct block_s* block, void* witness, proof_t proof, inst_t inst, challenge_t challenge) {
+	struct block_equals_sp_s *self = (struct block_equals_sp_s*)block;
+	struct block_equals_sp_witness_s *self_witness = (struct block_equals_sp_witness_s*)witness;
+	var_witness_response_gen(proof, self_witness->secret, challenge, inst->secret_values[self->secret_index], inst->secret_openings[self->secret_index]);
+}
+
+void equals_sp_witness_response_write(struct block_s* block, void* witness, FILE* stream) {
+	struct block_equals_sp_witness_s *self_witness = (struct block_equals_sp_witness_s*)witness;
+	var_witness_response_write(self_witness->secret, stream);
+}
+
+void equals_sp_witness_response_read(struct block_s* block, void* witness, FILE* stream) {
+	struct block_equals_sp_witness_s *self_witness = (struct block_equals_sp_witness_s*)witness;
+	var_witness_response_read(self_witness->secret, stream);
+}
+
+int equals_sp_witness_response_verify(struct block_s* block, void* witness, proof_t proof, inst_t inst, challenge_t challenge) {
+	struct block_equals_sp_s *self = (struct block_equals_sp_s*)block;
+	struct block_equals_sp_witness_s *self_witness = (struct block_equals_sp_witness_s*)witness;
+	if (var_witness_response_verify(proof, self_witness->secret, challenge, inst->secret_commitments[self->secret_index])) {
+		element_t right; element_init(right, proof->Z);
+		element_mul(right, challenge, inst->public_values[self->public_index]);
+		int result = !element_cmp(self_witness->secret->boxed_value, right);
+		element_clear(right);
+		return result;
+	} else return 0;
+}
+
+void block_equals_sp(proof_t proof, var_t secret, var_t _public) {
+	struct block_equals_sp_s *self = (struct block_equals_sp_s*)pbc_malloc(sizeof(struct block_equals_sp_s));
+	self->base.clear = &equals_sp_clear;
+	self->base.witness_init = &equals_sp_witness_init;
+	self->base.witness_clear = &equals_sp_witness_clear;
+	self->base.witness_claim_gen = &equals_sp_witness_claim_gen;
+	self->base.witness_claim_write = &equals_sp_witness_claim_write;
+	self->base.witness_claim_read = &equals_sp_witness_claim_read;
+	self->base.witness_response_gen = &equals_sp_witness_response_gen;
+	self->base.witness_response_write = &equals_sp_witness_response_write;
+	self->base.witness_response_read = &equals_sp_witness_response_read;
+	self->base.witness_response_verify = &equals_sp_witness_response_verify;
+	self->base.witness_size = sizeof(struct block_equals_sp_witness_s);
+	self->secret_index = var_index(secret);
+	self->public_index = var_index(_public);
 	block_insert(proof, &self->base);
 }
