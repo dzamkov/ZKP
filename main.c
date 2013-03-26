@@ -27,6 +27,7 @@ int main() {
 	var_t q = var_secret(proof);
 	var_t m = var_public(proof);
 	require_mul(proof, m, p, q);
+	require_equal(proof, 2, p, q);
 	
 	// Create a challenge (constant for demonstration purposes).
 	element_t challenge;
@@ -37,8 +38,8 @@ int main() {
 	inst_t pinst;
 	inst_init_prover(proof, pinst);
 	inst_var_set_si(proof, pinst, p, 137);
-	inst_var_set_si(proof, pinst, q, 173);
-	inst_var_set_si(proof, pinst, m, 23701);
+	inst_var_set_si(proof, pinst, q, 137);
+	inst_var_set_si(proof, pinst, m, 18769);
 	inst_update(proof, pinst);
 	
 	// Create a witness for the proof (prover).

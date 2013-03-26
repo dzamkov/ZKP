@@ -64,10 +64,10 @@ void blocks_clear(proof_t proof);
 // Generates witness information for all blocks in a proof.
 void blocks_generate(proof_t proof, inst_t inst, witness_t witness, FILE* data);
 
+// Inserts a block into a proof that verifies that a secret variable and a public variable are equivalent.
+void block_equals_public(proof_t proof, var_t secret, var_t _public);
+
 // Inserts a block into a proof that verifies a product relationship between three secret variables.
 void block_product(proof_t proof, var_t product, var_t factor_1, var_t factor_2);
-
-// Inserts a block into a proof that verifies that a secret variable and a public variable are equivalent.
-void block_equals_sp(proof_t proof, var_t secret, var_t _public);
 
 #endif // ZKP_INTERNAL_H_

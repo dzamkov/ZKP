@@ -24,6 +24,12 @@ var_t var_const_si(proof_t proof, long int value);
 // Requires a multiplicative relationship between the given product and factor variables in the given proof.
 void require_mul(proof_t proof, var_t product, var_t factor_1, var_t factor_2);
 
+// Requires that the values of all of the given variables are equivalent in the given proof.
+void require_equal(proof_t proof, int count, ...);
+void require_equal_2(proof_t proof, var_t a, var_t b);
+void require_equal_3(proof_t proof, var_t a, var_t b, var_t c);
+void require_equal_many(proof_t proof, int count, var_t* vars);
+
 // Indicates whether the given variable is secret.
 int var_is_secret(var_t var);
 

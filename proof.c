@@ -56,7 +56,7 @@ var_t var_secret_for(proof_t proof, var_t var) {
 	} else {
 		var_t mirror = var_secret(proof);
 		computation_mov(proof, mirror, var);
-		block_equals_sp(proof, mirror, var);
+		block_equals_public(proof, mirror, var);
 		return mirror;
 	}
 }
