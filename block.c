@@ -301,47 +301,47 @@ void block_equals_public(proof_t proof, var_t secret, var_t _public) {
 }
 
 /***************************************************
-* equals_many
+* equals
 *
 * Verifies that a set of secret variables are
 * equivalent.
 ****************************************************/
 
-struct block_equals_many_s {
+struct block_equals_s {
 	struct block_s base;
 	int count;
-	long* indices;
+	long *indices;
 };
 
 // r_S_1	= r_S_2		= ...		= r_S_n
 // [S_1]	= [S_2]		= ...		= [S_n]
 
-void equals_many_clear(struct block_s* block) {
-	struct block_equals_many_s *self = (struct block_equals_many_s*)block;
+void equals_clear(struct block_s* block) {
+	struct block_equals_s *self = (struct block_equals_s*)block;
 	pbc_free(self);
 }
 
-void equals_many_witness_init(struct block_s* block, proof_t proof, void* witness) {
+void equals_witness_init(struct block_s* block, proof_t proof, void* witness) {
 	int i;
-	struct block_equals_many_s *self = (struct block_equals_many_s*)block;
+	struct block_equals_s *self = (struct block_equals_s*)block;
 	var_witness_t* self_witness = (var_witness_t*)witness;
 	for (i = 0; i < self->count; i++) {
 		var_witness_init(proof, self_witness[i]);
 	}
 }
 
-void equals_many_witness_clear(struct block_s* block, void* witness) {
+void equals_witness_clear(struct block_s* block, void* witness) {
 	int i;
-	struct block_equals_many_s *self = (struct block_equals_many_s*)block;
+	struct block_equals_s *self = (struct block_equals_s*)block;
 	var_witness_t* self_witness = (var_witness_t*)witness;
 	for (i = 0; i < self->count; i++) {
 		var_witness_clear(self_witness[i]);
 	}
 }
 
-void equals_many_witness_claim_gen(struct block_s* block, void* witness, proof_t proof, inst_t inst) {
+void equals_witness_claim_gen(struct block_s* block, void* witness, proof_t proof, inst_t inst) {
 	int i;
-	struct block_equals_many_s *self = (struct block_equals_many_s*)block;
+	struct block_equals_s *self = (struct block_equals_s*)block;
 	var_witness_t* self_witness = (var_witness_t*)witness;
 	element_t randomizer_value; element_init(randomizer_value, proof->Z);
 	element_random(randomizer_value);
@@ -355,27 +355,27 @@ void equals_many_witness_claim_gen(struct block_s* block, void* witness, proof_t
 	element_clear(randomizer_value);
 }
 
-void equals_many_witness_claim_write(struct block_s* block, void* witness, FILE* stream) {
+void equals_witness_claim_write(struct block_s* block, void* witness, FILE* stream) {
 	int i;
-	struct block_equals_many_s *self = (struct block_equals_many_s*)block;
+	struct block_equals_s *self = (struct block_equals_s*)block;
 	var_witness_t* self_witness = (var_witness_t*)witness;
 	for (i = 0; i < self->count; i++) {
 		var_witness_claim_write(self_witness[i], stream);
 	}
 }
 
-void equals_many_witness_claim_read(struct block_s* block, void* witness, FILE* stream) {
+void equals_witness_claim_read(struct block_s* block, void* witness, FILE* stream) {
 	int i;
-	struct block_equals_many_s *self = (struct block_equals_many_s*)block;
+	struct block_equals_s *self = (struct block_equals_s*)block;
 	var_witness_t* self_witness = (var_witness_t*)witness;
 	for (i = 0; i < self->count; i++) {
 		var_witness_claim_read(self_witness[i], stream);
 	}
 }
 
-void equals_many_witness_response_gen(struct block_s* block, void* witness, proof_t proof, inst_t inst, challenge_t challenge) {
+void equals_witness_response_gen(struct block_s* block, void* witness, proof_t proof, inst_t inst, challenge_t challenge) {
 	int i;
-	struct block_equals_many_s *self = (struct block_equals_many_s*)block;
+	struct block_equals_s *self = (struct block_equals_s*)block;
 	var_witness_t* self_witness = (var_witness_t*)witness;
 	for (i = 0; i < self->count; i++) {
 		long index = self->indices[i];
@@ -383,27 +383,27 @@ void equals_many_witness_response_gen(struct block_s* block, void* witness, proo
 	}
 }
 
-void equals_many_witness_response_write(struct block_s* block, void* witness, FILE* stream) {
+void equals_witness_response_write(struct block_s* block, void* witness, FILE* stream) {
 	int i;
-	struct block_equals_many_s *self = (struct block_equals_many_s*)block;
+	struct block_equals_s *self = (struct block_equals_s*)block;
 	var_witness_t* self_witness = (var_witness_t*)witness;
 	for (i = 0; i < self->count; i++) {
 		var_witness_response_write(self_witness[i], stream);
 	}
 }
 
-void equals_many_witness_response_read(struct block_s* block, void* witness, FILE* stream) {
+void equals_witness_response_read(struct block_s* block, void* witness, FILE* stream) {
 	int i;
-	struct block_equals_many_s *self = (struct block_equals_many_s*)block;
+	struct block_equals_s *self = (struct block_equals_s*)block;
 	var_witness_t* self_witness = (var_witness_t*)witness;
 	for (i = 0; i < self->count; i++) {
 		var_witness_response_read(self_witness[i], stream);
 	}
 }
 
-int equals_many_witness_response_verify(struct block_s* block, void* witness, proof_t proof, inst_t inst, challenge_t challenge) {
+int equals_witness_response_verify(struct block_s* block, void* witness, proof_t proof, inst_t inst, challenge_t challenge) {
 	int i;
-	struct block_equals_many_s *self = (struct block_equals_many_s*)block;
+	struct block_equals_s *self = (struct block_equals_s*)block;
 	var_witness_t* self_witness = (var_witness_t*)witness;
 	for (i = 0; i < self->count; i++)
 		if (!var_witness_response_verify(proof, self_witness[i], challenge, inst->secret_commitments[self->indices[i]]))
@@ -414,18 +414,18 @@ int equals_many_witness_response_verify(struct block_s* block, void* witness, pr
 	return 1;
 }
 
-struct block_equals_many_s* block_equals_many_base(proof_t proof, int count) {
-	struct block_equals_many_s *self = (struct block_equals_many_s*)pbc_malloc(sizeof(struct block_equals_many_s));
-	self->base.clear = &equals_many_clear;
-	self->base.witness_init = &equals_many_witness_init;
-	self->base.witness_clear = &equals_many_witness_clear;
-	self->base.witness_claim_gen = &equals_many_witness_claim_gen;
-	self->base.witness_claim_write = &equals_many_witness_claim_write;
-	self->base.witness_claim_read = &equals_many_witness_claim_read;
-	self->base.witness_response_gen = &equals_many_witness_response_gen;
-	self->base.witness_response_write = &equals_many_witness_response_write;
-	self->base.witness_response_read = &equals_many_witness_response_read;
-	self->base.witness_response_verify = &equals_many_witness_response_verify;
+struct block_equals_s* block_equals_base(proof_t proof, int count) {
+	struct block_equals_s *self = (struct block_equals_s*)pbc_malloc(sizeof(struct block_equals_s));
+	self->base.clear = &equals_clear;
+	self->base.witness_init = &equals_witness_init;
+	self->base.witness_clear = &equals_witness_clear;
+	self->base.witness_claim_gen = &equals_witness_claim_gen;
+	self->base.witness_claim_write = &equals_witness_claim_write;
+	self->base.witness_claim_read = &equals_witness_claim_read;
+	self->base.witness_response_gen = &equals_witness_response_gen;
+	self->base.witness_response_write = &equals_witness_response_write;
+	self->base.witness_response_read = &equals_witness_response_read;
+	self->base.witness_response_verify = &equals_witness_response_verify;
 	self->base.witness_size = sizeof(var_witness_t) * count;
 	self->count = count;
 	self->indices = (long*)pbc_malloc(sizeof(long) * count);
@@ -435,7 +435,7 @@ struct block_equals_many_s* block_equals_many_base(proof_t proof, int count) {
 
 void require_equal(proof_t proof, int count, ...) {
 	int i;
-	struct block_equals_many_s *self = block_equals_many_base(proof, count);
+	struct block_equals_s *self = block_equals_base(proof, count);
 	va_list argp;
 	va_start(argp, count);
 	for (i = 0; i < count; i++) self->indices[i] = var_secret_for(proof, va_arg(argp, var_t));
@@ -443,13 +443,13 @@ void require_equal(proof_t proof, int count, ...) {
 }
 
 void require_equal_2(proof_t proof, var_t a, var_t b) {
-	struct block_equals_many_s *self = block_equals_many_base(proof, 2);
+	struct block_equals_s *self = block_equals_base(proof, 2);
 	self->indices[0] = var_secret_for(proof, a);
 	self->indices[1] = var_secret_for(proof, b);
 }
 
 void require_equal_3(proof_t proof, var_t a, var_t b, var_t c) {
-	struct block_equals_many_s *self = block_equals_many_base(proof, 3);
+	struct block_equals_s *self = block_equals_base(proof, 3);
 	self->indices[0] = var_secret_for(proof, a);
 	self->indices[1] = var_secret_for(proof, b);
 	self->indices[2] = var_secret_for(proof, c);
@@ -457,8 +457,214 @@ void require_equal_3(proof_t proof, var_t a, var_t b, var_t c) {
 
 void require_equal_many(proof_t proof, int count, var_t* vars) {
 	int i;
-	struct block_equals_many_s *self = block_equals_many_base(proof, count);
+	struct block_equals_s *self = block_equals_base(proof, count);
 	for (i = 0; i < count; i++) self->indices[i] = var_secret_for(proof, vars[i]);
+}
+
+/***************************************************
+* wsum_zero
+*
+* Verifies that the sum of a set of terms (product
+* of a secret variable and a constant) is zero.
+****************************************************/
+
+struct block_wsum_zero_s {
+	struct block_s base;
+	int count;
+	long* indices;
+	long* coefficients;
+};
+
+// k	= (c_1)(r_S_1) 	+ (c_2)(r_S_2)	+ ...	+ (c_n)(r_S_n)
+// k	= (c_1)[S_1]  	+ (c_2)[S_2]  	+ ...	+ (c_n)[S_n]  
+
+void wsum_zero_clear(struct block_s* block) {
+	struct block_wsum_zero_s *self = (struct block_wsum_zero_s*)block;
+	pbc_free(self);
+}
+
+void wsum_zero_witness_init(struct block_s* block, proof_t proof, void* witness) {
+	int i;
+	struct block_wsum_zero_s *self = (struct block_wsum_zero_s*)block;
+	var_witness_t* self_witness = (var_witness_t*)witness;
+	element_ptr k = (element_ptr)(self_witness + self->count);
+	element_init(k, proof->Z);
+	for (i = 0; i < self->count; i++) {
+		var_witness_init(proof, self_witness[i]);
+	}
+}
+
+void wsum_zero_witness_clear(struct block_s* block, void* witness) {
+	int i;
+	struct block_wsum_zero_s *self = (struct block_wsum_zero_s*)block;
+	var_witness_t* self_witness = (var_witness_t*)witness;
+	element_ptr k = (element_ptr)(self_witness + self->count);
+	element_clear(k);
+	for (i = 0; i < self->count; i++) {
+		var_witness_clear(self_witness[i]);
+	}
+}
+
+void wsum_zero_witness_claim_gen(struct block_s* block, void* witness, proof_t proof, inst_t inst) {
+	int i;
+	struct block_wsum_zero_s *self = (struct block_wsum_zero_s*)block;
+	var_witness_t* self_witness = (var_witness_t*)witness;
+	element_ptr k = (element_ptr)(self_witness + self->count);
+	element_t temp; element_init(temp, proof->Z);
+	for (i = 0; i < self->count; i++) {
+		var_witness_claim_gen(proof, self_witness[i]);
+		long coefficient = self->coefficients[i];
+		if (coefficient == 1) 
+			element_add(k, k, self_witness[i]->randomizer_value);
+		else if (coefficient == -1) 
+			element_sub(k, k, self_witness[i]->randomizer_value);
+		else {
+			element_mul_si(temp, self_witness[i]->randomizer_value, coefficient);
+			element_add(k, k, temp);
+		}
+	}
+	element_clear(temp);
+}
+
+void wsum_zero_witness_claim_write(struct block_s* block, void* witness, FILE* stream) {
+	int i;
+	struct block_wsum_zero_s *self = (struct block_wsum_zero_s*)block;
+	var_witness_t* self_witness = (var_witness_t*)witness;
+	element_ptr k = (element_ptr)(self_witness + self->count);
+	element_out_raw(stream, k);
+	for (i = 0; i < self->count; i++) {
+		var_witness_claim_write(self_witness[i], stream);
+	}
+}
+
+void wsum_zero_witness_claim_read(struct block_s* block, void* witness, FILE* stream) {
+	int i;
+	struct block_wsum_zero_s *self = (struct block_wsum_zero_s*)block;
+	var_witness_t* self_witness = (var_witness_t*)witness;
+	element_ptr k = (element_ptr)(self_witness + self->count);
+	element_inp_raw(k, stream);
+	for (i = 0; i < self->count; i++) {
+		var_witness_claim_read(self_witness[i], stream);
+	}
+}
+
+void wsum_zero_witness_response_gen(struct block_s* block, void* witness, proof_t proof, inst_t inst, challenge_t challenge) {
+	int i;
+	struct block_wsum_zero_s *self = (struct block_wsum_zero_s*)block;
+	var_witness_t* self_witness = (var_witness_t*)witness;
+	for (i = 0; i < self->count; i++) {
+		long index = self->indices[i];
+		var_witness_response_gen(proof, self_witness[i], challenge, inst->secret_values[index], inst->secret_openings[index]);
+	}
+}
+
+void wsum_zero_witness_response_write(struct block_s* block, void* witness, FILE* stream) {
+	int i;
+	struct block_wsum_zero_s *self = (struct block_wsum_zero_s*)block;
+	var_witness_t* self_witness = (var_witness_t*)witness;
+	for (i = 0; i < self->count; i++) {
+		var_witness_response_write(self_witness[i], stream);
+	}
+}
+
+void wsum_zero_witness_response_read(struct block_s* block, void* witness, FILE* stream) {
+	int i;
+	struct block_wsum_zero_s *self = (struct block_wsum_zero_s*)block;
+	var_witness_t* self_witness = (var_witness_t*)witness;
+	for (i = 0; i < self->count; i++) {
+		var_witness_response_read(self_witness[i], stream);
+	}
+}
+
+int wsum_zero_witness_response_verify(struct block_s* block, void* witness, proof_t proof, inst_t inst, challenge_t challenge) {
+	int i;
+	struct block_wsum_zero_s *self = (struct block_wsum_zero_s*)block;
+	var_witness_t* self_witness = (var_witness_t*)witness;
+	element_ptr k = (element_ptr)(self_witness + self->count);
+	element_t temp; element_init(temp, proof->Z);
+	element_t sum; element_init(sum, proof->Z);
+	for (i = 0; i < self->count; i++) {
+		if (!var_witness_response_verify(proof, self_witness[i], challenge, inst->secret_commitments[self->indices[i]]))
+			return 0;
+		long coefficient = self->coefficients[i];
+		if (coefficient == 1) 
+			element_add(sum, sum, self_witness[i]->boxed_value);
+		else if (coefficient == -1) 
+			element_sub(sum, sum, self_witness[i]->boxed_value);
+		else {
+			element_mul_si(temp, self_witness[i]->boxed_value, coefficient);
+			element_add(sum, sum, temp);
+		}
+	}
+	return !element_cmp(k, sum);
+}
+
+struct block_wsum_zero_s* block_wsum_zero_base(proof_t proof, int count) {
+	struct block_wsum_zero_s *self = (struct block_wsum_zero_s*)pbc_malloc(sizeof(struct block_wsum_zero_s));
+	self->base.clear = &wsum_zero_clear;
+	self->base.witness_init = &wsum_zero_witness_init;
+	self->base.witness_clear = &wsum_zero_witness_clear;
+	self->base.witness_claim_gen = &wsum_zero_witness_claim_gen;
+	self->base.witness_claim_write = &wsum_zero_witness_claim_write;
+	self->base.witness_claim_read = &wsum_zero_witness_claim_read;
+	self->base.witness_response_gen = &wsum_zero_witness_response_gen;
+	self->base.witness_response_write = &wsum_zero_witness_response_write;
+	self->base.witness_response_read = &wsum_zero_witness_response_read;
+	self->base.witness_response_verify = &wsum_zero_witness_response_verify;
+	self->base.witness_size = sizeof(var_witness_t) * count + sizeof(element_t);
+	self->count = count;
+	self->indices = (long*)pbc_malloc(sizeof(long) * count);
+	self->coefficients = (long*)pbc_malloc(sizeof(long) * count);
+	block_insert(proof, &self->base);
+	return self;
+}
+
+void require_sum(proof_t proof, var_t sum, var_t addend_1, var_t addend_2) {
+	struct block_wsum_zero_s *self = block_wsum_zero_base(proof, 3);
+	self->coefficients[0] = -1; self->indices[0] = var_secret_for(proof, sum);
+	self->coefficients[1] = 1; self->indices[1] = var_secret_for(proof, addend_1);
+	self->coefficients[2] = 1; self->indices[2] = var_secret_for(proof, addend_2);
+}
+
+void require_dif(proof_t proof, var_t dif, var_t minuend, var_t subtrahend) {
+	struct block_wsum_zero_s *self = block_wsum_zero_base(proof, 3);
+	self->coefficients[0] = -1; self->indices[0] = var_secret_for(proof, dif);
+	self->coefficients[1] = 1; self->indices[1] = var_secret_for(proof, minuend);
+	self->coefficients[2] = -1; self->indices[2] = var_secret_for(proof, subtrahend);
+}
+
+void require_wsum_zero(proof_t proof, int count, ...) {
+	int i;
+	struct block_wsum_zero_s *self = block_wsum_zero_base(proof, count);
+	va_list argp;
+	va_start(argp, count);
+	for (i = 0; i < count; i++) {
+		self->coefficients[i] = va_arg(argp, long);
+		self->indices[i] = var_secret_for(proof, va_arg(argp, var_t));
+	}
+	va_end(argp);
+}
+
+void require_wsum_zero_2(proof_t proof, long a_coeff, var_t a, long b_coeff, var_t b) {
+	struct block_wsum_zero_s *self = block_wsum_zero_base(proof, 2);
+	self->coefficients[0] = a_coeff; self->indices[0] = var_secret_for(proof, a);
+	self->coefficients[1] = b_coeff; self->indices[1] = var_secret_for(proof, b);
+}
+
+void require_wsum_zero_3(proof_t proof, long a_coeff, var_t a, long b_coeff, var_t b, long c_coeff, var_t c) {
+	struct block_wsum_zero_s *self = block_wsum_zero_base(proof, 3);
+	self->coefficients[0] = a_coeff; self->indices[0] = var_secret_for(proof, a);
+	self->coefficients[1] = b_coeff; self->indices[1] = var_secret_for(proof, b);
+	self->coefficients[2] = c_coeff; self->indices[2] = var_secret_for(proof, c);
+}
+
+void require_wsum_zero_many(proof_t proof, int count, long* coeffs, var_t* vars) {
+	int i;
+	struct block_wsum_zero_s *self = block_wsum_zero_base(proof, count);
+	for (i = 0; i < count; i++) {
+		self->coefficients[i] = coeffs[i];
+		self->indices[i] = var_secret_for(proof, vars[i]);
+	}
 }
 
 /***************************************************

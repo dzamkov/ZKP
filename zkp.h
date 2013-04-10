@@ -30,6 +30,18 @@ void require_equal_2(proof_t proof, var_t a, var_t b);
 void require_equal_3(proof_t proof, var_t a, var_t b, var_t c);
 void require_equal_many(proof_t proof, int count, var_t* vars);
 
+// Requires an additive relationship between the given sum and addends variables in the given proof.
+void require_sum(proof_t proof, var_t sum, var_t addend_1, var_t addend_2);
+
+// Requires an additive relationship between the given difference, minuend and subtrahend variables in the given proof.
+void require_dif(proof_t proof, var_t dif, var_t minuend, var_t subtrahend);
+
+// Requires the weighted sum of the given variables to be zero in the given proof.
+void require_wsum_zero(proof_t proof, int count, ...);
+void require_wsum_zero_2(proof_t proof, long a_coeff, var_t a, long b_coeff, var_t b);
+void require_wsum_zero_3(proof_t proof, long a_coeff, var_t a, long b_coeff, var_t b, long c_coeff, var_t c);
+void require_wsum_zero_many(proof_t proof, int count, long* coeffs, var_t* vars);
+
 // Indicates whether the given variable is secret.
 int var_is_secret(var_t var);
 

@@ -27,7 +27,7 @@ int main() {
 	var_t q = var_secret(proof);
 	var_t m = var_public(proof);
 	require_mul(proof, m, p, q);
-	require_equal(proof, 2, p, q);
+	require_wsum_zero_3(proof, 1, m, 1, p, 1, q);
 	
 	// Create a challenge (constant for demonstration purposes).
 	element_t challenge;
@@ -37,9 +37,9 @@ int main() {
 	// Create an instance of the proof (prover).
 	inst_t pinst;
 	inst_init_prover(proof, pinst);
-	inst_var_set_si(proof, pinst, p, 137);
-	inst_var_set_si(proof, pinst, q, 137);
-	inst_var_set_si(proof, pinst, m, 18769);
+	inst_var_set_si(proof, pinst, p, -2);
+	inst_var_set_si(proof, pinst, q, -2);
+	inst_var_set_si(proof, pinst, m, 4);
 	inst_update(proof, pinst);
 	
 	// Create a witness for the proof (prover).
