@@ -11,6 +11,25 @@ int main() {
 	if (!count) pbc_die("input error");
 	pairing_init_set_buf(pairing, param, count);
 	
+	mpz_t a; mpz_init(a);
+	mpz_t b; mpz_init(b);
+	mpz_t c; mpz_init(c);
+	mpz_t d; mpz_init(d);
+	mpz_t n; mpz_init_set_ui(n, 50000);
+	mpz_t r; mpz_init(r);
+	
+	for(;;) {
+		mpz_decompose(a, b, c, d, n);
+		mpz_set(r, n);
+		mpz_submul(r, a, a);
+		mpz_submul(r, b, b);
+		mpz_submul(r, c, c);
+		mpz_submul(r, d, d);
+		gmp_printf("%Zd ^ 2 + %Zd ^ 2 + %Zd ^ 2 + %Zd ^ 2 = %Zd\n", a, b, c, d, n);
+		if (!mpz_is0(r)) break;
+		mpz_add_ui(n, n, 1);
+	}
+	
 	// Setup field.
 	element_t g;
 	element_t h;

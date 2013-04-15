@@ -9,6 +9,17 @@ size_t element_out_raw(FILE* stream, element_t element);
 // read, or 0, if an error occured.
 size_t element_inp_raw(element_t element, FILE* stream);
 
+// Finds two non-negative integers whose squares sum to the given 
+// prime (congruent to 1 mod 4). This is always possible due to Fermat's 
+// theorem on sums of two squares. Returns false if the precondition is
+// not met (such as when n is a probable prime, but not prime).
+int mpz_decompose_prime(mpz_t a, mpz_t b, mpz_t n);
+
+// Finds four non-negative integers whose squares su to the given 
+// non-negative integer. This is always possible due to the
+// Lagrange four square theorem.
+void mpz_decompose(mpz_t a, mpz_t b, mpz_t c, mpz_t d, mpz_t n);
+
 // Gets the index for the given variable.
 long var_index(var_t var);
 
