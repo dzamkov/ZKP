@@ -2,18 +2,38 @@
 #include "zkp.h"
 #include "zkp_internal.h"
 
+void _multi_init(type_ptr, data_ptr);
+void _multi_clear(type_ptr, data_ptr);
+void _multi_write(type_ptr, data_ptr, FILE*);
+void _multi_read(type_ptr, data_ptr, FILE*);
+type_ptr _claim_secret_type_for_block(block_ptr);
+type_ptr _claim_public_type_for_block(block_ptr);
+type_ptr _response_type_for_block(block_ptr);
+void multi_type_init(struct multi_type_s* type, proof_ptr proof, type_ptr (*for_block)(block_ptr)) {
+	type->base->init = &_multi_init;
+	type->base->clear = &_multi_clear;
+	type->base->write = &_multi_write;
+	type->base->read = &_multi_read;
+	type->base->size = 0;
+	type->proof = proof;
+	type->for_block = for_block;
+}
+
 void proof_init(proof_t proof, field_ptr Z, field_ptr G, element_t g, element_t h) {
+	element_type_init(proof->Z_type, Z);
+	element_type_init(proof->G_type, G);
+	multi_type_init(&proof->claim_secret_type, proof, &_claim_secret_type_for_block);
+	multi_type_init(&proof->claim_public_type, proof, &_claim_public_type_for_block);
+	multi_type_init(&proof->response_type, proof, &_response_type_for_block);
+	
 	proof->num_secret = 0;
 	proof->num_public = 0;
-	proof->Z = Z;
-	proof->G = G;
 	element_init(proof->g, G); element_set(proof->g, g);
 	element_init(proof->h, G); element_set(proof->h, h);
 	
 	proof->first_computation = NULL;
 	proof->last_computation = NULL;
 	proof->first_block = NULL;
-	proof->witness_size = 0;
 }
 
 void proof_clear(proof_t proof) {
@@ -67,14 +87,14 @@ void inst_init_prover(proof_t proof, inst_t inst) {
 	inst->secret_openings = pbc_malloc(proof->num_secret * sizeof(element_t));
 	inst->secret_commitments = pbc_malloc(proof->num_secret * sizeof(element_t));
 	for (i = 0; i < proof->num_secret; i++) {
-		element_init(inst->secret_values[i], proof->Z);
-		element_init(inst->secret_openings[i], proof->Z);
-		element_init(inst->secret_commitments[i], proof->G);
+		element_init(inst->secret_values[i], proof->Z_type->field);
+		element_init(inst->secret_openings[i], proof->Z_type->field);
+		element_init(inst->secret_commitments[i], proof->G_type->field);
 	}
 	
 	inst->public_values = pbc_malloc(proof->num_public * sizeof(element_t));
 	for (i = 0; i < proof->num_public; i++) {
-		element_init(inst->public_values[i], proof->Z);
+		element_init(inst->public_values[i], proof->Z_type->field);
 	}
 }
 
@@ -84,12 +104,12 @@ void inst_init_verifier(proof_t proof, inst_t inst) {
 	inst->secret_openings = NULL;
 	inst->secret_commitments = pbc_malloc(proof->num_secret * sizeof(element_t));
 	for (i = 0; i < proof->num_secret; i++) {
-		element_init(inst->secret_commitments[i], proof->G);
+		element_init(inst->secret_commitments[i], proof->G_type->field);
 	}
 	
 	inst->public_values = pbc_malloc(proof->num_public * sizeof(element_t));
 	for (i = 0; i < proof->num_public; i++) {
-		element_init(inst->public_values[i], proof->Z);
+		element_init(inst->public_values[i], proof->Z_type->field);
 	}
 }
 
@@ -161,29 +181,29 @@ element_ptr inst_var_get(proof_t proof, inst_t inst, var_t var) {
 }
 
 void inst_var_write(proof_t proof, inst_t inst, var_t var, FILE* stream) {
-	element_out_raw(stream, inst_var_get(proof, inst, var));
+	element_write(proof->Z_type->field, inst_var_get(proof, inst, var), stream);
 }
 
 void inst_var_read(proof_t proof, inst_t inst, var_t var, FILE* stream) {
 	if (var_is_secret(var)) {
 		assert(inst->secret_values != NULL);
-		element_inp_raw(inst->secret_values[var_index(var)], stream);
+		element_read(proof->Z_type->field, inst->secret_values[var_index(var)], stream);
 		update_secret_commitment(proof, inst, var_index(var));
 	} else {
-		element_inp_raw(inst->public_values[var_index(var)], stream);
+		element_read(proof->Z_type->field, inst->public_values[var_index(var)], stream);
 	}
 }
 
 void inst_commitments_write(proof_t proof, inst_t inst, FILE* stream) {
 	int i;
 	for (i = 0; i < proof->num_secret; i++) {
-		element_out_raw(stream, inst->secret_commitments[i]);
+		element_write(proof->G_type->field, inst->secret_commitments[i], stream);
 	}
 }
 
 void inst_commitments_read(proof_t proof, inst_t inst, FILE* stream) {
 	int i;
 	for (i = 0; i < proof->num_secret; i++) {
-		element_inp_raw(inst->secret_commitments[i], stream);
+		element_read(proof->G_type->field, inst->secret_commitments[i], stream);
 	}
 }

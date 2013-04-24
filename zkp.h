@@ -2,6 +2,7 @@
 #define ZKP_H_
 
 #include <pbc.h>
+#include "zkp_io.h"
 #include "zkp_types.h"
 
 // Initializes a proof, setting it to a default empty state.
@@ -82,35 +83,16 @@ void inst_commitments_write(proof_t proof, inst_t inst, FILE* stream);
 // Reads all commitments for secret variables from a stream.
 void inst_commitments_read(proof_t proof, inst_t inst, FILE* stream);
 
-// Initializes a witness for a proof.
-void witness_init(proof_t proof, witness_t witness);
+// Creates a random claim for an instance of a proof. A succesful response to the claim
+// with a randomly chosen challenge acts as a witness to the validity of the instance.
+void claim_gen(proof_t proof, inst_t inst, data_ptr claim_secret, data_ptr claim_public);
 
-// Frees the space occupied by a witness of a proof.
-void witness_clear(proof_t proof, witness_t witness);
+// Creates a response to a claim for a given challenge.
+void response_gen(proof_t proof, inst_t inst, data_ptr claim_secret, challenge_t challenge, data_ptr response);
 
-// Generates a random claim for a witness of a proof. This is performed by the prover before
-// the challenge is known.
-void witness_claim_gen(proof_t proof, inst_t inst, witness_t witness);
+// Verifies the consistency of a response, returning zero if it is invalid or some non-zero value if it is
+// valid.
+int response_verify(proof_t proof, inst_t inst, data_ptr claim_public, challenge_t challenge, data_ptr response);
 
-// Outputs the public claim information in a witness to a stream.
-void witness_claim_write(proof_t proof, witness_t witness, FILE* stream);
-
-// Reads the public claim information from a stream into a witness.
-void witness_claim_read(proof_t proof, witness_t witness, FILE* stream);
-
-// Generates a response for a witness of a proof. This is performed by the prover after the
-// challenge is known.
-void witness_response_gen(proof_t proof, inst_t inst, witness_t witness, challenge_t challenge);
-
-// Outputs the response information in a witness to a stream.
-void witness_response_write(proof_t proof, witness_t witness, FILE* stream);
-
-// Reads the response information from a stream into a witness.
-void witness_response_read(proof_t proof, witness_t witness, FILE* stream);
-
-// Verifies that the response information in the given witness is consistent with the given instance
-// and challenge, returning zero otherwise. This is performed by the verifier to check if a witness
-// is valid.
-int witness_response_verify(proof_t proof, inst_t inst, witness_t witness, challenge_t challenge);
 
 #endif // ZKP_H_

@@ -11,25 +11,6 @@ int main() {
 	if (!count) pbc_die("input error");
 	pairing_init_set_buf(pairing, param, count);
 	
-	mpz_t a; mpz_init(a);
-	mpz_t b; mpz_init(b);
-	mpz_t c; mpz_init(c);
-	mpz_t d; mpz_init(d);
-	mpz_t n; mpz_init_set_ui(n, 50000);
-	mpz_t r; mpz_init(r);
-	
-	for(;;) {
-		mpz_decompose(a, b, c, d, n);
-		mpz_set(r, n);
-		mpz_submul(r, a, a);
-		mpz_submul(r, b, b);
-		mpz_submul(r, c, c);
-		mpz_submul(r, d, d);
-		gmp_printf("%Zd ^ 2 + %Zd ^ 2 + %Zd ^ 2 + %Zd ^ 2 = %Zd\n", a, b, c, d, n);
-		if (!mpz_is0(r)) break;
-		mpz_add_ui(n, n, 1);
-	}
-	
 	// Setup field.
 	element_t g;
 	element_t h;
@@ -50,7 +31,7 @@ int main() {
 	
 	// Create a challenge (constant for demonstration purposes).
 	element_t challenge;
-	element_init(challenge, proof->Z);
+	element_init(challenge, proof->Z_type->field);
 	element_set_si(challenge, 1000001);
 	
 	// Create an instance of the proof (prover).
@@ -62,17 +43,18 @@ int main() {
 	inst_update(proof, pinst);
 	
 	// Create a witness for the proof (prover).
-	witness_t pwitness;
-	witness_init(proof, pwitness);
-	witness_claim_gen(proof, pinst, pwitness);
-	witness_response_gen(proof, pinst, pwitness, challenge);
+	data_ptr pclaim_secret = new((type_ptr)&proof->claim_secret_type);
+	data_ptr pclaim_public = new((type_ptr)&proof->claim_public_type);
+	data_ptr presponse = new((type_ptr)&proof->response_type);
+	claim_gen(proof, pinst, pclaim_secret, pclaim_public);
+	response_gen(proof, pinst, pclaim_secret, challenge, presponse);
 	
 	// Prepare a message for the verifier (prover).
 	FILE* pmessage = fopen("message.dat", "w+b");
 	inst_var_write(proof, pinst, m, pmessage);
 	inst_commitments_write(proof, pinst, pmessage);
-	witness_claim_write(proof, pwitness, pmessage);
-	witness_response_write(proof, pwitness, pmessage);
+	write((type_ptr)&proof->claim_public_type, pclaim_public, pmessage);
+	write((type_ptr)&proof->response_type, presponse, pmessage);
 	fclose(pmessage);
 	
 	// Begin reading the message (verifier).
@@ -86,14 +68,14 @@ int main() {
 	inst_update(proof, vinst);
 	
 	// Read witness (verifier)
-	witness_t vwitness;
-	witness_init(proof, vwitness);
-	witness_claim_read(proof, vwitness, vmessage);
-	witness_response_read(proof, vwitness, vmessage);
+	data_ptr vclaim_public = new((type_ptr)&proof->claim_public_type);
+	data_ptr vresponse = new((type_ptr)&proof->response_type);
+	read((type_ptr)&proof->claim_public_type, vclaim_public, vmessage);
+	read((type_ptr)&proof->response_type, vresponse, vmessage);
 	fclose(vmessage);
 	
 	// Verify (verifier).	
-	if (witness_response_verify(proof, vinst, vwitness, challenge)) {
+	if (response_verify(proof, vinst, vclaim_public, challenge, vresponse)) {
 		printf("Verification success.\n");
 	} else {
 		printf("Verification failure.\n");
