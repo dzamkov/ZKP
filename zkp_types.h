@@ -67,10 +67,6 @@ typedef struct inst_s {
 	element_t *public_values;
 } inst_t[1];
 
-// A witness to an instance to a proof. If the prover is able to create a valid response to a challenge
-// for the witness, the instance is consistent with the description of the proof (with overwhelming probability).
-typedef void* witness_t[1];
-
 // A challenge that demonstrates an instance/witness pair is probably consistent when a 
 // correct response is given.
 typedef element_t challenge_t;
