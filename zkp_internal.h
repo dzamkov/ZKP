@@ -50,6 +50,7 @@ typedef struct block_s {
 	void (*claim_gen)(block_ptr, proof_t, inst_t, data_ptr, data_ptr);
 	void (*response_gen)(block_ptr, proof_t, inst_t, data_ptr, challenge_t, data_ptr);
 	int (*response_verify)(block_ptr, proof_t, inst_t, data_ptr, challenge_t, data_ptr);
+	type_ptr inst_type;
 	type_ptr claim_secret_type;
 	type_ptr claim_public_type;
 	type_ptr response_type;

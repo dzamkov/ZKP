@@ -6,6 +6,7 @@ void _multi_init(type_ptr, data_ptr);
 void _multi_clear(type_ptr, data_ptr);
 void _multi_write(type_ptr, data_ptr, FILE*);
 void _multi_read(type_ptr, data_ptr, FILE*);
+type_ptr _inst_type_for_block(block_ptr);
 type_ptr _claim_secret_type_for_block(block_ptr);
 type_ptr _claim_public_type_for_block(block_ptr);
 type_ptr _response_type_for_block(block_ptr);
@@ -22,10 +23,10 @@ void multi_type_init(struct multi_type_s* type, proof_ptr proof, type_ptr (*for_
 void proof_init(proof_t proof, field_ptr Z, field_ptr G, element_t g, element_t h) {
 	element_type_init(proof->Z_type, Z);
 	element_type_init(proof->G_type, G);
+	multi_type_init(&proof->inst_type, proof, &_inst_type_for_block);
 	multi_type_init(&proof->claim_secret_type, proof, &_claim_secret_type_for_block);
 	multi_type_init(&proof->claim_public_type, proof, &_claim_public_type_for_block);
 	multi_type_init(&proof->response_type, proof, &_response_type_for_block);
-	
 	proof->num_secret = 0;
 	proof->num_public = 0;
 	element_init(proof->g, G); element_set(proof->g, g);
@@ -86,16 +87,17 @@ void inst_init_prover(proof_t proof, inst_t inst) {
 	inst->secret_values = pbc_malloc(proof->num_secret * sizeof(element_t));
 	inst->secret_openings = pbc_malloc(proof->num_secret * sizeof(element_t));
 	inst->secret_commitments = pbc_malloc(proof->num_secret * sizeof(element_t));
+	inst->public_values = pbc_malloc(proof->num_public * sizeof(element_t));
+	inst->block_data = new((type_ptr)&proof->inst_type);
 	for (i = 0; i < proof->num_secret; i++) {
 		element_init(inst->secret_values[i], proof->Z_type->field);
 		element_init(inst->secret_openings[i], proof->Z_type->field);
 		element_init(inst->secret_commitments[i], proof->G_type->field);
 	}
-	
-	inst->public_values = pbc_malloc(proof->num_public * sizeof(element_t));
 	for (i = 0; i < proof->num_public; i++) {
 		element_init(inst->public_values[i], proof->Z_type->field);
 	}
+	
 }
 
 void inst_init_verifier(proof_t proof, inst_t inst) {
@@ -103,11 +105,11 @@ void inst_init_verifier(proof_t proof, inst_t inst) {
 	inst->secret_values = NULL;
 	inst->secret_openings = NULL;
 	inst->secret_commitments = pbc_malloc(proof->num_secret * sizeof(element_t));
+	inst->public_values = pbc_malloc(proof->num_public * sizeof(element_t));
+	inst->block_data = new((type_ptr)&proof->inst_type);
 	for (i = 0; i < proof->num_secret; i++) {
 		element_init(inst->secret_commitments[i], proof->G_type->field);
 	}
-	
-	inst->public_values = pbc_malloc(proof->num_public * sizeof(element_t));
 	for (i = 0; i < proof->num_public; i++) {
 		element_init(inst->public_values[i], proof->Z_type->field);
 	}
@@ -134,6 +136,7 @@ void inst_clear(proof_t proof, inst_t inst) {
 		element_clear(inst->public_values[i]);
 	}
 	pbc_free(inst->public_values);
+	delete((type_ptr)&proof->inst_type, inst->block_data);
 }
 
 void update_secret_commitment(proof_t proof, inst_t inst, long index) {

@@ -24,7 +24,18 @@ size_t element_read(field_ptr field, element_t element, FILE* stream) {
 	return len;
 }
 
-
+void _void_init(type_ptr type, data_ptr data) { }
+void _void_clear(type_ptr type, data_ptr data) { }
+void _void_write(type_ptr type, data_ptr data, FILE* stream) { }
+void _void_read(type_ptr type, data_ptr data, FILE* stream) { }
+type_t void_type = {{
+	&_void_init,
+	&_void_clear,
+	&_void_write,
+	&_void_read,
+	0
+}};
+	
 void _element_init(type_ptr, data_ptr);
 void _element_clear(type_ptr, data_ptr);
 void _element_write(type_ptr, data_ptr, FILE*);

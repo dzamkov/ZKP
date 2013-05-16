@@ -1,210 +1,142 @@
-// Requires:
-//  * pbc.h
 #include <pbc.h>
-#include "sig.h"
+#include "zkp_io.h"
+#include "zkp_sig.h"
 
-void key_secret_init(key_secret_t secret_key, int n) {
-	int i;
-	int l = n - 1;
-	mpz_init(secret_key->x);
-	mpz_init(secret_key->y);
-	secret_key->z = pbc_malloc(l * sizeof(element_t));
-	for (i = 0; i < l; i++) {
-		mpz_init(secret_key->z[i]);
+void sig_scheme_init(sig_scheme_t scheme, int n, pairing_ptr pairing, element_t g) {
+	element_type_init(scheme->Z_type, pairing->Zr);
+	element_type_init(scheme->G_type, pairing->G1);
+	element_type_init(scheme->T_type, pairing->GT);
+	array_type_init(scheme->secret_key_type, (type_ptr)scheme->Z_type, n + 1);
+	array_type_init(scheme->public_key_type, (type_ptr)scheme->G_type, n + 1);
+	array_type_init(scheme->sig_type, (type_ptr)scheme->G_type, n * 2 + 1);
+	element_init(scheme->g, scheme->G_type->field); element_set(scheme->g, g);
+	scheme->n = n;
+	scheme->pairing = pairing;
+}
+
+void sig_scheme_clear(sig_scheme_t scheme) {
+	element_free(scheme->g);
+}
+
+void sig_key_setup(sig_scheme_t scheme, data_ptr secret_key, data_ptr public_key) {
+	int i; int m = scheme->n + 1;
+	for (i = 0; i < m; i++) {
+		element_ptr t = get_element(scheme->Z_type, get_item(scheme->secret_key_type, secret_key, i));
+		element_ptr T = get_element(scheme->G_type, get_item(scheme->public_key_type, public_key, i));
+	
+		// T = t ^ x
+		element_random(t);
+		element_pow_zn(T, scheme->g, t);
 	}
 }
 
-void key_secret_clear(key_secret_t secret_key, int n) {
-	int i;
-	int l = n - 1;
-	mpz_clear(secret_key->x);
-	mpz_clear(secret_key->y);
-	for (i = 0; i < l; i++) {
-		mpz_clear(secret_key->z[i]);
-	}
-	pbc_free(secret_key->z);
-}
+void sig_sign(sig_scheme_t scheme, data_ptr secret_key, data_ptr sig, element_t message[]) {
+	int i; int n = scheme->n; int l = n - 1;
+	element_ptr x = get_element(scheme->Z_type, get_item(scheme->secret_key_type, secret_key, 0));
+	element_ptr y = get_element(scheme->Z_type, get_item(scheme->secret_key_type, secret_key, 1));
+	element_ptr a = get_element(scheme->G_type, get_item(scheme->sig_type, sig, 0));
+	element_ptr b = get_element(scheme->G_type, get_item(scheme->sig_type, sig, 1));
+	element_ptr c = get_element(scheme->G_type, get_item(scheme->sig_type, sig, 2));
 
-void key_public_init(key_public_t public_key, pairing_t pairing, int n) {
-	int i;
-	int l = n - 1;
-	element_init_G1(public_key->g, pairing);
-	element_init_G1(public_key->X, pairing);
-	element_init_G1(public_key->Y, pairing);
-	public_key->Z = pbc_malloc(l * sizeof(element_t));
-	for (i = 0; i < l; i++) {
-		element_init_G1(public_key->Z[i], pairing);
-	}
-}
-
-void key_public_clear(key_public_t public_key, int n) {
-	int i;
-	int l = n - 1;
-	element_clear(public_key->g);
-	element_clear(public_key->X);
-	element_clear(public_key->Y);
-	for (i = 0; i < l; i++) {
-		element_clear(public_key->Z[i]);
-	}
-	pbc_free(public_key->Z);
-}
-
-void key_init_random(key_secret_t secret_key, key_public_t public_key, pairing_t pairing, int n) {
-	int i;
-	int l = n - 1;
-	
-	key_secret_init(secret_key, n);
-	key_public_init(public_key, pairing, n);
-	
-	
-	element_random(public_key->g);
-	
-	// X = g ^ x
-	pbc_mpz_random(secret_key->x, pairing->G1->order);
-	element_pow_mpz(public_key->X, public_key->g, secret_key->x);
-	
-	// Y = g ^ y
-	pbc_mpz_random(secret_key->y, pairing->G1->order);
-	element_pow_mpz(public_key->Y, public_key->g, secret_key->y);
-	
-	for (i = 0; i < l; i++) {
-		
-		// Z[i] = g ^ z[i]
-		pbc_mpz_random(secret_key->z[i], pairing->G1->order);
-		element_pow_mpz(public_key->Z[i], public_key->g, secret_key->z[i]);
-	}
-}
-
-void sig_init(sig_t sig, pairing_t pairing, int n) {
-	int i;
-	int l = n - 1;
-	element_init_G1(sig->a, pairing);
-	element_init_G1(sig->b, pairing);
-	element_init_G1(sig->c, pairing);
-	sig->A = pbc_malloc(l * sizeof(element_t));
-	sig->B = pbc_malloc(l * sizeof(element_t));
-	for (i = 0; i < l; i++) {
-		element_init_G1(sig->A[i], pairing);
-		element_init_G1(sig->B[i], pairing);
-	}
-}
-
-void sig_sign_mpz(sig_t sig, key_secret_t secret_key, mpz_t message[], int n) {
-	int i;
-	int l = n - 1;
-	
-	mpz_t xy, e_temp;
-	mpz_init(xy);
-	mpz_init(e_temp);
-	
-	element_t temp;
-	element_init_same_as(temp, sig->a);
+	// xy = x * y
+	element_t xy; element_init(xy, scheme->Z_type->field);
+	element_mul(xy, x, y);
 
 	// b = a ^ y
-	element_random(sig->a);
-	element_pow_mpz(sig->b, sig->a, secret_key->y);
+	element_random(a);
+	element_pow_zn(b, a, y);
+
+	// c = a ^ (x + x * y * m_0)
+	element_t e; element_init(e, scheme->Z_type->field);
+	element_mul(e, xy, message[0]);
+	element_add(e, e, x);
+	element_pow_zn(c, a, e);
 	
-	// c = a ^ (x + x * y * m[0])
-	mpz_mul(xy, secret_key->x, secret_key->y);
-	mpz_mul(e_temp, xy, message[0]);
-	mpz_add(e_temp, e_temp, secret_key->x);
-	element_pow_mpz(temp, sig->a, e_temp);
-	element_set(sig->c, temp);
-	
+	element_t f; element_init(f, scheme->G_type->field);
 	for (i = 0; i < l; i++) {
+		element_ptr z = get_element(scheme->Z_type, get_item(scheme->secret_key_type, secret_key, 2 + i));
+		element_ptr A = get_element(scheme->G_type, get_item(scheme->sig_type, sig, 3 + i));
+		element_ptr B = get_element(scheme->G_type, get_item(scheme->sig_type, sig, 3 + (n - 1) + i));
 		
-		// A[i] = a ^ z[i]
-		element_pow_mpz(sig->A[i], sig->a, secret_key->z[i]);
+		// A = a ^ z
+		element_pow_zn(A, a, z);
 		
-		// B[i] = A[i] ^ y
-		element_pow_mpz(sig->B[i], sig->A[i], secret_key->y);
+		// B = A ^ y
+		element_pow_zn(B, A, y);
 		
-		// c = c * A[i] ^ (x * y * m[i + 1])
-		mpz_mul(e_temp, xy, message[i + 1]);
-		element_pow_mpz(temp, sig->A[i], e_temp);
-		element_mul(sig->c, sig->c, temp);
+		// C *= A ^ (x * y * m_{i + 1})
+		element_mul(e, xy, message[1 + i]);
+		element_pow_zn(f, A, e);
+		element_mul(c, c, f);
 	}
 	
-	mpz_clear(xy);
-	mpz_clear(e_temp);
-	element_clear(temp);
+	element_clear(xy);
+	element_clear(e);
+	element_clear(f);
 }
 
-int verify_mpz(element_t left, element_t right, sig_t sig, 
-	key_public_t public_key, pairing_t pairing, mpz_t message[], int n)
-{
-	int i;
-	int l = n - 1;
+int sig_verify(sig_scheme_t scheme, data_ptr public_key, data_ptr sig, element_t message[]) {
+	int i; int n = scheme->n; int l = n - 1;
+	element_ptr X = get_element(scheme->G_type, get_item(scheme->public_key_type, public_key, 0));
+	element_ptr Y = get_element(scheme->G_type, get_item(scheme->public_key_type, public_key, 1));
+	element_ptr a = get_element(scheme->G_type, get_item(scheme->sig_type, sig, 0));
+	element_ptr b = get_element(scheme->G_type, get_item(scheme->sig_type, sig, 1));
+	element_ptr c = get_element(scheme->G_type, get_item(scheme->sig_type, sig, 2));
 	
-	// e(a, Y) = e(g, b)
-	pairing_apply(left, sig->a, public_key->Y, pairing);
-	pairing_apply(right, public_key->g, sig->b, pairing);
-	if (element_cmp(left, right)) return 0;
-
-	for (i = 0; i < l; i++) {
-		
-		// e(a, Z[i]) = e(g, A[i])
-		pairing_apply(left, sig->a, public_key->Z[i], pairing);
-		pairing_apply(right, public_key->g, sig->A[i], pairing);
-		if (element_cmp(left, right)) return 0;
-		
-		// e(A[i], Y) = e(g, B[i])
-		pairing_apply(left, sig->A[i], public_key->Y, pairing);
-		pairing_apply(right, public_key->g, sig->B[i], pairing);
-		if (element_cmp(left, right)) return 0;
+	element_t left; element_init(left, scheme->T_type->field);
+	element_t right; element_init(right, scheme->T_type->field);
+	element_t temp; element_init(temp, scheme->T_type->field);
+	
+	// Verify e(a, Y) = e(g, b)
+	int result = 1;
+	pairing_apply(left, a, Y, scheme->pairing);
+	pairing_apply(right, scheme->g, b, scheme->pairing);
+	if (element_cmp(left, right)) {
+		result = 0;
+		goto end;
 	}
 	
-	pairing_pp_t p;
-	element_t temp;
-	element_init_GT(temp, pairing);
-	pairing_pp_init(p, public_key->X, pairing);
-	
-	// right = e(X, a) * e(X, b) ^ m[0]
-	pairing_pp_apply(right, sig->a, p);
-	pairing_pp_apply(temp, sig->b, p);
-	element_pow_mpz(temp, temp, message[0]);
-	element_mul(right, right, temp);
-	
 	for (i = 0; i < l; i++) {
+		element_ptr Z = get_element(scheme->G_type, get_item(scheme->public_key_type, public_key, 2 + i));
+		element_ptr A = get_element(scheme->G_type, get_item(scheme->sig_type, sig, 3 + i));
+		element_ptr B = get_element(scheme->G_type, get_item(scheme->sig_type, sig, 3 + (n - 1) + i));
 		
-		// right = right * e(X, B[i]) ^ m[i + 1]
-		pairing_pp_apply(temp, sig->B[i], p);
-		element_pow_mpz(temp, temp, message[i + 1]);
-		element_mul(right, right, temp);
+		// Verify e(a, Z) = e(g, A)
+		pairing_apply(left, a, Z, scheme->pairing);
+		pairing_apply(right, scheme->g, A, scheme->pairing);
+		if (element_cmp(left, right)) {
+			result = 0;
+			goto end;
+		}
+		
+		// Verify e(A, Y) = e(g, B)
+		pairing_apply(left, A, Y, scheme->pairing);
+		pairing_apply(right, scheme->g, B, scheme->pairing);
+		if (element_cmp(left, right)) {
+			result = 0;
+			goto end;
+		}
 	}
 	
-	element_clear(temp);
+	// Verify e(X, a) * e(X, b) ^ m_0 * e(X, B_0) ^ m_1 * e(X, B_1) ^ m_2 * ... = e(g, c)
+	pairing_pp_t p; pairing_pp_init(p, X, scheme->pairing);
+	pairing_pp_apply(left, a, p);
+	pairing_pp_apply(temp, b, p);
+	element_pow_zn(temp, temp, message[0]);
+	element_mul(left, left, temp);
+	for (i = 0; i < l; i++) {
+		element_ptr B = get_element(scheme->G_type, get_item(scheme->sig_type, sig, 3 + (n - 1) + i));
+		pairing_pp_apply(temp, B, p);
+		element_pow_zn(temp, temp, message[1 + i]);
+		element_mul(left, left, temp);
+	}
 	pairing_pp_clear(p);
+	pairing_apply(right, scheme->g, c, scheme->pairing);
+	result = !element_cmp(left, right);
 	
-	// e(g, c) = right
-	pairing_apply(left, public_key->g, sig->c, pairing);
-	if (element_cmp(left, right)) return 0;
-	
-	return 1;
-}
-
-int sig_verify_mpz(sig_t sig, key_public_t public_key, pairing_t pairing, mpz_t message[], int n) {
-	element_t left, right;
-	element_init_GT(left, pairing);
-	element_init_GT(right, pairing);
-	
-	int result = verify_mpz(left, right, sig, public_key, pairing, message, n);
-
+end:
 	element_clear(left);
 	element_clear(right);
+	element_clear(temp);
 	return result;
-}
-
-void sig_clear(sig_t sig, int n) {
-	int i;
-	int l = n - 1;
-	element_clear(sig->a);
-	element_clear(sig->b);
-	element_clear(sig->c);
-	for (i = 0; i < l; i++) {
-		element_clear(sig->A[i]);
-		element_clear(sig->B[i]);
-	}
-	pbc_free(sig->A);
-	pbc_free(sig->B);
 }

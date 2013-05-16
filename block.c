@@ -94,6 +94,10 @@ void _multi_read(type_ptr type, data_ptr data, FILE* stream) {
 	}
 }
 
+type_ptr _inst_type_for_block(block_ptr block) {
+	return block->inst_type;
+}
+
 type_ptr _claim_secret_type_for_block(block_ptr block) {
 	return block->claim_secret_type;
 }
@@ -139,6 +143,7 @@ void block_equals_public(proof_t proof, var_t secret, var_t public) {
 	self->base->claim_gen = &_equals_public_claim_gen;
 	self->base->response_gen = &_equals_public_response_gen;
 	self->base->response_verify = &_equals_public_response_verify;
+	self->base->inst_type = (type_ptr)void_type;
 	self->base->claim_secret_type = (type_ptr)proof->Z_type;
 	self->base->claim_public_type = (type_ptr)proof->G_type;
 	self->base->response_type = (type_ptr)proof->Z_type;
@@ -227,6 +232,7 @@ block_equals_ptr block_equals_base(proof_t proof, int count) {
 	self->base->claim_gen = &_equals_claim_gen;
 	self->base->response_gen = &_equals_response_gen;
 	self->base->response_verify = &_equals_response_verify;
+	self->base->inst_type = (type_ptr)void_type;
 	self->base->claim_secret_type = (type_ptr)self->Zx_type;
 	self->base->claim_public_type = (type_ptr)self->Gx_type;
 	self->base->response_type = (type_ptr)self->Zx_type;
@@ -373,6 +379,7 @@ block_wsum_zero_ptr block_wsum_zero_base(proof_t proof, int count) {
 	self->base->claim_gen = &_wsum_zero_claim_gen;
 	self->base->response_gen = &_wsum_zero_response_gen;
 	self->base->response_verify = &_wsum_zero_response_verify;
+	self->base->inst_type = (type_ptr)void_type;
 	self->base->claim_secret_type = (type_ptr)proof->Z_type;
 	self->base->claim_public_type = (type_ptr)proof->G_type;
 	self->base->response_type = (type_ptr)proof->Z_type;
@@ -525,158 +532,7 @@ void block_product(proof_t proof, var_t product, var_t factor_1, var_t factor_2)
 	self->base->claim_gen = &_product_claim_gen;
 	self->base->response_gen = &_product_response_gen;
 	self->base->response_verify = &_product_response_verify;
-	self->base->claim_secret_type = (type_ptr)self->Zx_type;
-	self->base->claim_public_type = (type_ptr)self->Gx_type;
-	self->base->response_type = (type_ptr)self->Zx_type;
-	self->product_index = var_index(product);
-	self->factor_1_index = var_index(factor_1);
-	self->factor_2_index = var_index(factor_2);
-	block_insert(proof, (block_ptr)self);
-}
-
-void _product_clear(block_ptr block) {
-	pbc_free((block_product_ptr)block);
-}
-
-void _product_claim_gen(block_ptr block, proof_t proof, inst_t inst, data_ptr claim_secret, data_ptr claim_public) {
-	block_product_ptr self = (block_product_ptr)block;
-	element_ptr r_1 = get_element((element_type_ptr)proof->Z_type, get_item((array_type_ptr)self->Zx_type, claim_secret, 0));
-	element_ptr r_2 = get_element((element_type_ptr)proof->Z_type, get_item((array_type_ptr)self->Zx_type, claim_secret, 1));
-	element_ptr r_3 = get_element((element_type_ptr)proof->Z_type, get_item((array_type_ptr)self->Zx_type, claim_secret, 2));
-	element_ptr R_1 = get_element((element_type_ptr)proof->G_type, get_item((array_type_ptr)self->Gx_type, claim_public, 0));
-	element_ptr R_2 = get_element((element_type_ptr)proof->G_type, get_item((array_type_ptr)self->Gx_type, claim_public, 1));
-	
-	// R_1 = g ^ r_1 * h ^ r_2
-	element_random(r_1);
-	element_random(r_2);
-	element_pow2_zn(R_1, proof->g, r_1, proof->h, r_2);
-	
-	// R_2 = C_f_2 ^ r_1 * h ^ r_3
-	element_random(r_3);
-	element_pow2_zn(R_2, inst->secret_commitments[self->factor_2_index], r_1, proof->h, r_3);
-}
-
-void _product_response_gen(block_ptr block, proof_t proof, inst_t inst, data_ptr claim_secret, challenge_t challenge, data_ptr response) {
-	block_product_ptr self = (block_product_ptr)block;
-	element_ptr r_1 = get_element((element_type_ptr)proof->Z_type, get_item((array_type_ptr)self->Zx_type, claim_secret, 0));
-	element_ptr r_2 = get_element((element_type_ptr)proof->Z_type, get_item((array_type_ptr)self->Zx_type, claim_secret, 1));
-	element_ptr r_3 = get_element((element_type_ptr)proof->Z_type, get_item((array_type_ptr)self->Zx_type, claim_secret, 2));
-	element_ptr x_1 = get_element((element_type_ptr)proof->Z_type, get_item((array_type_ptr)self->Zx_type, response, 0));
-	element_ptr x_2 = get_element((element_type_ptr)proof->Z_type, get_item((array_type_ptr)self->Zx_type, response, 1));
-	element_ptr x_3 = get_element((element_type_ptr)proof->Z_type, get_item((array_type_ptr)self->Zx_type, response, 2));
-
-	// x_1 = e * f_1 + r_1
-	element_mul(x_1, inst->secret_values[self->factor_1_index], challenge);
-	element_add(x_1, x_1, r_1);
-	
-	// x_2 = e * o_f_1 + r_2
-	element_mul(x_2, inst->secret_openings[self->factor_1_index], challenge);
-	element_add(x_2, x_2, r_2);
-	
-	// x_3 = e(o_p - o_f_2 * f_1) + r_3
-	element_mul(x_3, inst->secret_openings[self->factor_2_index], inst->secret_values[self->factor_1_index]);
-	element_sub(x_3, inst->secret_openings[self->product_index], x_3);
-	element_mul(x_3, x_3, challenge);
-	element_add(x_3, x_3, r_3);
-}
-
-int _product_response_verify(block_ptr block, proof_t proof, inst_t inst, data_ptr claim_public, challenge_t challenge, data_ptr response) {
-	block_product_ptr self = (block_product_ptr)block;
-	element_ptr R_1 = get_element((element_type_ptr)proof->G_type, get_item((array_type_ptr)self->Gx_type, claim_public, 0));
-	element_ptr R_2 = get_element((element_type_ptr)proof->G_type, get_item((array_type_ptr)self->Gx_type, claim_public, 1));
-	element_ptr x_1 = get_element((element_type_ptr)proof->Z_type, get_item((array_type_ptr)self->Zx_type, response, 0));
-	element_ptr x_2 = get_element((element_type_ptr)proof->Z_type, get_item((array_type_ptr)self->Zx_type, response, 1));
-	element_ptr x_3 = get_element((element_type_ptr)proof->Z_type, get_item((array_type_ptr)self->Zx_type, response, 2));
-	
-	// Verify g ^ x_1 * h ^ x_2 = C_f_1 ^ e * R_1
-	int result = 1;
-	element_t left; element_init(left, proof->G_type->field);
-	element_t right; element_init(right, proof->G_type->field);
-	element_pow2_zn(left, proof->g, x_1, proof->h, x_2);
-	element_pow_zn(right, inst->secret_commitments[self->factor_1_index], challenge);
-	element_mul(right, right, R_1);
-	if (element_cmp(left, right)) {
-		result = 0;
-		goto end;
-	}
-	
-	// Verify C_f_2 ^ x_1 * h ^ x_3 = C_p ^ e * R_2
-	element_pow2_zn(left, inst->secret_commitments[self->factor_2_index], x_1, proof->h, x_3);
-	element_pow_zn(right, inst->secret_commitments[self->product_index], challenge);
-	element_mul(right, right, R_2);
-	result = !element_cmp(left, right);
-
-end:
-	element_clear(left);
-	element_clear(right);
-	return result;
-}
-
-void require_mul(proof_t proof, var_t product, var_t factor_1, var_t factor_2) {
-	block_product(proof,
-		var_secret_for(proof, product),
-		var_secret_for(proof, factor_1),
-		var_secret_for(proof, factor_2));
-}
-
-/***************************************************
-* inequality
-*
-* Verifies whether a secret variable (interpreted
-* as an unsigned integer) is greater than or less 
-* than a fixed value.
-****************************************************/
-
-typedef struct block_inequality_s *block_inequality_ptr;
-typedef struct block_inequality_s {
-	block_t base;
-	array_type_t Zx_type;
-	array_type_t Gx_type;
-	long index;
-	mpz_t value;
-	int mode; // 0 = greater than, 1 = less than
-} block_inequality_t[1];
-
-// o_p  	= inst->secret_openings[product_index]
-// C_p  	= inst->secret_commitments[product_index]
-// f_1  	= inst->secret_values[factor_1_index]
-// o_f_1  	= inst->secret_openings[factor_1_index]
-// C_f_1	= inst->secret_commitments[factor_1_index]
-// o_f_1  	= inst->secret_openings[factor_2_index]
-// C_f_2	= inst->secret_commitments[factor_2_index]
-
-// v	= inst->secret_values[index]
-// f	= value
-// k	= (v - f) for greater than, (f - v) for less than
-
-// a ^ 2 + b ^ 2 + c ^ 2 + d ^ 2	= k
-
-// A	= g ^ a * h ^ o_a
-// B	= g ^ b * h ^ o_b
-// C	= g ^ c * h ^ o_c
-// D	= g ^ d * h ^ o_d
-
-// [(r_1, r_2, r_3, r_4, r_5, r_6, r_7, r_8, r_9)]	= R	=
-//		(g ^ r_1 * h ^ r_5, g ^ r_2 * h ^ r_6, g ^ r_3 * h ^ r_7, g ^ r_4 * h ^ r_8, 
-//			A ^ r_1 * B ^ r_2 * C ^ r_3 * D ^ r_4)
-
-// 
-
-// [(r_1, r_2, r_3)]                	= (g ^ r_1 * h ^ r_2, C_f_2 ^ r_1 * h ^ r_3)	= R
-// [(f_1, o_f_1, o_p - o_f_2 * f_1)]	= (C_f_1, C_p)
-
-void _product_clear(block_ptr);
-void _product_claim_gen(block_ptr, proof_t, inst_t, data_ptr, data_ptr);
-void _product_response_gen(block_ptr, proof_t, inst_t, data_ptr, challenge_t, data_ptr);
-int _product_response_verify(block_ptr, proof_t, inst_t, data_ptr, challenge_t, data_ptr);
-void block_product(proof_t proof, var_t product, var_t factor_1, var_t factor_2) {
-	block_product_ptr self = (block_product_ptr)pbc_malloc(sizeof(block_product_t));
-	array_type_init(self->Zx_type, (type_ptr)proof->Z_type, 3);
-	array_type_init(self->Gx_type, (type_ptr)proof->G_type, 2);
-	self->base->clear = &_product_clear;
-	self->base->claim_gen = &_product_claim_gen;
-	self->base->response_gen = &_product_response_gen;
-	self->base->response_verify = &_product_response_verify;
+	self->base->inst_type = (type_ptr)void_type;
 	self->base->claim_secret_type = (type_ptr)self->Zx_type;
 	self->base->claim_public_type = (type_ptr)self->Gx_type;
 	self->base->response_type = (type_ptr)self->Zx_type;

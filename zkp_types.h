@@ -19,7 +19,7 @@ typedef struct proof_s {
 		type_t base;
 		type_ptr (*for_block)(block_ptr);
 		proof_ptr proof;
-	} claim_secret_type, claim_public_type, response_type;
+	} inst_type, claim_secret_type, claim_public_type, response_type;
 	
 	// The g element for this proof, used for computing commitments.
 	element_t g;
@@ -65,6 +65,10 @@ typedef struct inst_s {
 	
 	// The values of the public variables.
 	element_t *public_values;
+	
+	// Block-dependent instance data.
+	data_ptr block_data;
+	
 } inst_t[1];
 
 // A challenge that demonstrates an instance/witness pair is probably consistent when a 

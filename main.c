@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "zkp.h"
+#include "zkp_sig.h"
 
 int main() {
 	pairing_t pairing;
@@ -19,6 +20,23 @@ int main() {
 	element_random(g);
 	element_random(h);
 	
+	// Test signatures
+	sig_scheme_t scheme;
+	sig_scheme_init(scheme, 3, pairing, g);
+	
+	element_t message[3];
+	element_init(message[0], scheme->Z_type->field); element_set_si(message[0], 15);
+	element_init(message[1], scheme->Z_type->field); element_set_si(message[1], 31);
+	element_init(message[2], scheme->Z_type->field); element_set_si(message[2], 61);
+	
+	data_ptr secret_key = new((type_ptr)scheme->secret_key_type);
+	data_ptr public_key = new((type_ptr)scheme->public_key_type);
+	sig_key_setup(scheme, secret_key, public_key);
+	
+	data_ptr sig = new((type_ptr)scheme->sig_type);
+	sig_sign(scheme, secret_key, sig, message);
+	int sig_result = sig_verify(scheme, public_key, sig, message);
+	
 	// Describe proof (prover and verifier).
 	proof_t proof;
 	proof_init(proof, pairing->Zr, pairing->G1, g, h);
@@ -36,10 +54,17 @@ int main() {
 	
 	// Create an instance of the proof (prover).
 	inst_t pinst;
+	mpz_t p_val; mpz_init(p_val);
+	mpz_t q_val; mpz_init(q_val);
+	mpz_t m_val; mpz_init(m_val);
+	printf("p = "); gmp_scanf("%Zd", p_val);
+	printf("q = "); gmp_scanf("%Zd", q_val);
+	printf("m = "); gmp_scanf("%Zd", m_val);
+	
 	inst_init_prover(proof, pinst);
-	inst_var_set_si(proof, pinst, p, -2);
-	inst_var_set_si(proof, pinst, q, -2);
-	inst_var_set_si(proof, pinst, m, 4);
+	inst_var_set_mpz(proof, pinst, p, p_val);
+	inst_var_set_mpz(proof, pinst, q, q_val);
+	inst_var_set_mpz(proof, pinst, m, m_val);
 	inst_update(proof, pinst);
 	
 	// Create a witness for the proof (prover).
@@ -81,6 +106,7 @@ int main() {
 		printf("Verification failure.\n");
 	}
 	
+	getchar();
 	getchar();
 	return 0;
 }

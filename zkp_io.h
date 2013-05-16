@@ -70,6 +70,9 @@ typedef struct array_type_s {
 	int count;
 } array_type_t[1];
 
+// The void type, which has only one possible value.
+extern type_t void_type;
+
 // Initializes an element type of the given field.
 void element_type_init(element_type_t type, field_ptr field);
 
