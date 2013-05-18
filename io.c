@@ -1,5 +1,5 @@
 #include <stdint.h>
-#include "zkp.h"
+#include <pbc.h>
 #include "zkp_io.h"
 
 void* alloca(size_t);

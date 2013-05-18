@@ -57,10 +57,10 @@
 		<Unit filename="sig.c">
 			<Option compilerVar="CC" />
 		</Unit>
-		<Unit filename="sig.h" />
 		<Unit filename="zkp.h" />
 		<Unit filename="zkp_internal.h" />
 		<Unit filename="zkp_io.h" />
+		<Unit filename="zkp_sig.h" />
 		<Unit filename="zkp_types.h" />
 		<Extensions>
 			<code_completion />

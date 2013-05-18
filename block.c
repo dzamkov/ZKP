@@ -1,6 +1,8 @@
 #include <assert.h>
 #include <stdarg.h>
-#include "zkp.h"
+#include <pbc.h>
+#include "zkp_io.h"
+#include "zkp_proof.h"
 #include "zkp_internal.h"
 
 void block_insert(proof_t proof, block_ptr block) {

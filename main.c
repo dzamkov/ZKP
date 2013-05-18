@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include "zkp.h"
-#include "zkp_sig.h"
 
 int main() {
 	pairing_t pairing;

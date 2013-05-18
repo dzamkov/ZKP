@@ -1,5 +1,7 @@
 #include <stdint.h>
-#include "zkp.h"
+#include <pbc.h>
+#include "zkp_io.h"
+#include "zkp_proof.h"
 #include "zkp_internal.h"
 
 int mpz_decompose_prime(mpz_t a, mpz_t b, mpz_t n) {

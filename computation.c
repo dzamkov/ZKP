@@ -1,5 +1,7 @@
 #include <assert.h>
-#include "zkp.h"
+#include <pbc.h>
+#include "zkp_io.h"
+#include "zkp_proof.h"
 #include "zkp_internal.h"
 
 void computation_insert(proof_t proof, computation_ptr computation) {
