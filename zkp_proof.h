@@ -3,6 +3,7 @@
 
 typedef struct computation_s *computation_ptr;
 typedef struct block_s *block_ptr;
+typedef struct sig_scheme_s *sig_scheme_ptr;
 
 // Describes a zero-knowledge proof.
 typedef struct proof_s *proof_ptr;
@@ -19,7 +20,7 @@ typedef struct proof_s {
 		type_t base;
 		type_ptr (*for_block)(block_ptr);
 		proof_ptr proof;
-	} inst_type, claim_secret_type, claim_public_type, response_type;
+	} supplement_type, claim_secret_type, claim_public_type, response_type;
 	
 	// The g element for this proof, used for computing commitments.
 	element_t g;
@@ -50,11 +51,14 @@ void proof_init(proof_t proof, field_ptr Z, field_ptr G, element_t g, element_t 
 // Frees the space occupied by a proof.
 void proof_clear(proof_t proof);
 
-
 // A reference to a proof variable, which may either be secret (set by the 
 // prover on each instance and kept unknown to the verifier) or public (set
 // consistently between the prover and verifier for each instance).
 typedef unsigned long var_t;
+
+// A reference to a block-dependent supplement within an instance. Supplements provide
+// information needed to perform certain proofs.
+typedef size_t supplement_t;
 
 // Declares a new secret variable in the given proof.
 var_t var_secret(proof_t proof);
@@ -71,9 +75,7 @@ var_t var_const_si(proof_t proof, long int value);
 void require_mul(proof_t proof, var_t product, var_t factor_1, var_t factor_2);
 
 // Requires that the values of all of the given variables are equivalent in the given proof.
-void require_equal(proof_t proof, int count, ...);
-void require_equal_2(proof_t proof, var_t a, var_t b);
-void require_equal_3(proof_t proof, var_t a, var_t b, var_t c);
+void require_equal(proof_t proof, int count, /* var_t a, var_t b, */ ...);
 void require_equal_many(proof_t proof, int count, var_t* vars);
 
 // Requires an additive relationship between the given sum and addends variables in the given proof.
@@ -83,10 +85,12 @@ void require_sum(proof_t proof, var_t sum, var_t addend_1, var_t addend_2);
 void require_dif(proof_t proof, var_t dif, var_t minuend, var_t subtrahend);
 
 // Requires the weighted sum of the given variables to be zero in the given proof.
-void require_wsum_zero(proof_t proof, int count, ...);
-void require_wsum_zero_2(proof_t proof, long a_coeff, var_t a, long b_coeff, var_t b);
-void require_wsum_zero_3(proof_t proof, long a_coeff, var_t a, long b_coeff, var_t b, long c_coeff, var_t c);
+void require_wsum_zero(proof_t proof, int count, /* long a_coeff, var_t a, long b_coeff, var_t b, */ ...);
 void require_wsum_zero_many(proof_t proof, int count, long* coeffs, var_t* vars);
+
+// Requires a signature on a set of variables in the given proof.
+void require_sig(proof_t proof, sig_scheme_ptr scheme, data_ptr public_key, supplement_t* sig, /* var_t a, var_t b, */ ...);
+void require_sig_many(proof_t proof, sig_scheme_ptr scheme, data_ptr public_key, supplement_t* sig, var_t* vars);
 
 // Indicates whether the given variable is secret.
 int var_is_secret(var_t var);
@@ -112,8 +116,8 @@ typedef struct inst_s {
 	// The values of the public variables.
 	element_t *public_values;
 	
-	// Block-dependent instance data.
-	data_ptr block_data;
+	// Block-dependent supplementary instance data.
+	data_ptr supplement_data;
 	
 } inst_t[1];
 
@@ -144,6 +148,9 @@ void inst_var_read(proof_t proof, inst_t inst, var_t var, FILE* stream);
 
 // Sets the values of computed variables in an instance.
 void inst_update(proof_t proof, inst_t inst);
+
+// Returns a pointer to a supplement in an instance.
+data_ptr inst_supplement(proof_t proof, inst_t inst, supplement_t supplement);
 
 // Outputs all commitments for secret variables to a stream.
 void inst_commitments_write(proof_t proof, inst_t inst, FILE* stream);

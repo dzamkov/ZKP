@@ -19,37 +19,37 @@ int main() {
 	element_random(g);
 	element_random(h);
 	
-	// Test signatures
+	// Create a signature scheme
 	sig_scheme_t scheme;
 	sig_scheme_init(scheme, 3, pairing, g);
-	
-	element_t message[3];
-	element_init(message[0], scheme->Z_type->field); element_set_si(message[0], 15);
-	element_init(message[1], scheme->Z_type->field); element_set_si(message[1], 31);
-	element_init(message[2], scheme->Z_type->field); element_set_si(message[2], 61);
-	
 	data_ptr secret_key = new((type_ptr)scheme->secret_key_type);
 	data_ptr public_key = new((type_ptr)scheme->public_key_type);
 	sig_key_setup(scheme, secret_key, public_key);
-	
-	data_ptr sig = new((type_ptr)scheme->sig_type);
-	sig_sign(scheme, secret_key, sig, message);
-	int sig_result = sig_verify(scheme, public_key, sig, message);
 	
 	// Describe proof (prover and verifier).
 	proof_t proof;
 	proof_init(proof, pairing->Zr, pairing->G1, g, h);
 	
+	supplement_t sig_supplement;
 	var_t p = var_secret(proof);
 	var_t q = var_secret(proof);
 	var_t m = var_public(proof);
 	require_mul(proof, m, p, q);
-	require_wsum_zero_3(proof, 1, m, 1, p, 1, q);
+	require_sig(proof, scheme, public_key, &sig_supplement, p, q, m);
 	
 	// Create a challenge (constant for demonstration purposes).
 	element_t challenge;
 	element_init(challenge, proof->Z_type->field);
 	element_set_si(challenge, 1000001);
+	
+	// Create a signature for the supplement
+	element_t message[3];
+	element_init(message[0], scheme->Z_type->field); element_set_si(message[0], 3);
+	element_init(message[1], scheme->Z_type->field); element_set_si(message[1], 4);
+	element_init(message[2], scheme->Z_type->field); element_set_si(message[2], 12);
+
+	data_ptr sig = new((type_ptr)scheme->sig_type);
+	sig_sign(scheme, secret_key, sig, message);
 	
 	// Create an instance of the proof (prover).
 	inst_t pinst;
@@ -64,12 +64,14 @@ int main() {
 	inst_var_set_mpz(proof, pinst, p, p_val);
 	inst_var_set_mpz(proof, pinst, q, q_val);
 	inst_var_set_mpz(proof, pinst, m, m_val);
+	copy((type_ptr)scheme->sig_type, inst_supplement(proof, pinst, sig_supplement), sig);
 	inst_update(proof, pinst);
 	
 	// Create a witness for the proof (prover).
 	data_ptr pclaim_secret = new((type_ptr)&proof->claim_secret_type);
 	data_ptr pclaim_public = new((type_ptr)&proof->claim_public_type);
 	data_ptr presponse = new((type_ptr)&proof->response_type);
+	
 	claim_gen(proof, pinst, pclaim_secret, pclaim_public);
 	response_gen(proof, pinst, pclaim_secret, challenge, presponse);
 	

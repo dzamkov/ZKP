@@ -8,6 +8,7 @@
 void block_insert(proof_t proof, block_ptr block) {
 	block->next = proof->first_block;
 	proof->first_block = block;
+	proof->supplement_type.base->size += block->supplement_type->size;
 	proof->claim_secret_type.base->size += block->claim_secret_type->size;
 	proof->claim_public_type.base->size += block->claim_public_type->size;
 	proof->response_type.base->size += block->response_type->size;
@@ -96,8 +97,8 @@ void _multi_read(type_ptr type, data_ptr data, FILE* stream) {
 	}
 }
 
-type_ptr _inst_type_for_block(block_ptr block) {
-	return block->inst_type;
+type_ptr _supplement_type_for_block(block_ptr block) {
+	return block->supplement_type;
 }
 
 type_ptr _claim_secret_type_for_block(block_ptr block) {
@@ -132,8 +133,8 @@ typedef struct block_equals_public_s {
 // C_s	= inst->secret_commitments[secret_index]
 // p	= inst->public_values[public_index]
 
-// [r]               	= h ^ r	= R
-// [eo_s + r] * g ^ ep	= (C_s)^e * R
+// [r]                        	= h ^ r	= R
+// [e * o_s + r] * g ^ (e * p)	= (C_s) ^ e * R
 
 void _equals_public_clear(block_ptr);
 void _equals_public_claim_gen(block_ptr, proof_t, inst_t, data_ptr, data_ptr);
@@ -145,7 +146,7 @@ void block_equals_public(proof_t proof, var_t secret, var_t public) {
 	self->base->claim_gen = &_equals_public_claim_gen;
 	self->base->response_gen = &_equals_public_response_gen;
 	self->base->response_verify = &_equals_public_response_verify;
-	self->base->inst_type = (type_ptr)void_type;
+	self->base->supplement_type = (type_ptr)void_type;
 	self->base->claim_secret_type = (type_ptr)proof->Z_type;
 	self->base->claim_public_type = (type_ptr)proof->G_type;
 	self->base->response_type = (type_ptr)proof->Z_type;
@@ -172,7 +173,7 @@ void _equals_public_response_gen(block_ptr block, proof_t proof, inst_t inst, da
 	element_ptr r = get_element((element_type_ptr)proof->Z_type, claim_secret);
 	element_ptr x = get_element((element_type_ptr)proof->Z_type, response);
 	
-	// x = eo_s + r
+	// x = e * o_s + r
 	element_mul(x, challenge, inst->secret_openings[self->secret_index]);
 	element_add(x, x, r);
 }
@@ -182,7 +183,7 @@ int _equals_public_response_verify(block_ptr block, proof_t proof, inst_t inst, 
 	element_ptr R = get_element((element_type_ptr)proof->G_type, claim_public);
 	element_ptr x = get_element((element_type_ptr)proof->Z_type, response);
 	
-	// Verify [x] * g ^ ep = (C_s) ^ e * R
+	// Verify [x] * g ^ (e * p) = (C_s) ^ e * R
 	element_t gexp; element_init(gexp, proof->Z_type->field);
 	element_mul(gexp, challenge, inst->public_values[self->public_index]);
 	element_t left; element_init(left, proof->G_type->field);
@@ -234,7 +235,7 @@ block_equals_ptr block_equals_base(proof_t proof, int count) {
 	self->base->claim_gen = &_equals_claim_gen;
 	self->base->response_gen = &_equals_response_gen;
 	self->base->response_verify = &_equals_response_verify;
-	self->base->inst_type = (type_ptr)void_type;
+	self->base->supplement_type = (type_ptr)void_type;
 	self->base->claim_secret_type = (type_ptr)self->Zx_type;
 	self->base->claim_public_type = (type_ptr)self->Gx_type;
 	self->base->response_type = (type_ptr)self->Zx_type;
@@ -277,7 +278,7 @@ void _equals_response_gen(block_ptr block, proof_t proof, inst_t inst, data_ptr 
 	element_ptr r = get_element((element_type_ptr)proof->Z_type, get_item((array_type_ptr)self->Zx_type, claim_secret, 0));
 	element_ptr x = get_element((element_type_ptr)proof->Z_type, get_item((array_type_ptr)self->Zx_type, response, 0));
 	
-	// x = es_1 + r
+	// x = e * s_1 + r
 	element_mul(x, challenge, inst->secret_values[self->indices[0]]);
 	element_add(x, x, r);
 	
@@ -319,26 +320,13 @@ int _equals_response_verify(block_ptr block, proof_t proof, inst_t inst, data_pt
 	return result;
 }
 
-void require_equal(proof_t proof, int count, ...) {
+void require_equal(proof_t proof, int count, /* var_t a, var_t b, */ ...) {
 	int i;
 	struct block_equals_s *self = block_equals_base(proof, count);
 	va_list argp;
 	va_start(argp, count);
 	for (i = 0; i < count; i++) self->indices[i] = var_secret_for(proof, va_arg(argp, var_t));
 	va_end(argp);
-}
-
-void require_equal_2(proof_t proof, var_t a, var_t b) {
-	struct block_equals_s *self = block_equals_base(proof, 2);
-	self->indices[0] = var_secret_for(proof, a);
-	self->indices[1] = var_secret_for(proof, b);
-}
-
-void require_equal_3(proof_t proof, var_t a, var_t b, var_t c) {
-	struct block_equals_s *self = block_equals_base(proof, 3);
-	self->indices[0] = var_secret_for(proof, a);
-	self->indices[1] = var_secret_for(proof, b);
-	self->indices[2] = var_secret_for(proof, c);
 }
 
 void require_equal_many(proof_t proof, int count, var_t* vars) {
@@ -381,7 +369,7 @@ block_wsum_zero_ptr block_wsum_zero_base(proof_t proof, int count) {
 	self->base->claim_gen = &_wsum_zero_claim_gen;
 	self->base->response_gen = &_wsum_zero_response_gen;
 	self->base->response_verify = &_wsum_zero_response_verify;
-	self->base->inst_type = (type_ptr)void_type;
+	self->base->supplement_type = (type_ptr)void_type;
 	self->base->claim_secret_type = (type_ptr)proof->Z_type;
 	self->base->claim_public_type = (type_ptr)proof->G_type;
 	self->base->response_type = (type_ptr)proof->Z_type;
@@ -432,7 +420,7 @@ int _wsum_zero_response_verify(block_ptr block, proof_t proof, inst_t inst, data
 	element_ptr R = get_element((element_type_ptr)proof->G_type, claim_public);
 	element_ptr x = get_element((element_type_ptr)proof->Z_type, response);
 	
-	// Verify [x] * (C_s_1) ^ ek_1 * (C_s_2) ^ ek_2 * ... = R
+	// Verify [x] * (C_s_1) ^ (e * k_1) * (C_s_2) ^ (e * k_2) * ... = R
 	element_t left; element_init(left, proof->G_type->field);
 	element_t term; element_init(term, proof->G_type->field);
 	for (i = 0; i < count; i++) {
@@ -460,7 +448,7 @@ void require_dif(proof_t proof, var_t dif, var_t minuend, var_t subtrahend) {
 	self->coefficients[2] = -1; self->indices[2] = var_secret_for(proof, subtrahend);
 }
 
-void require_wsum_zero(proof_t proof, int count, ...) {
+void require_wsum_zero(proof_t proof, int count, /* long a_coeff, var_t a, long b_coeff, var_t b, */ ...) {
 	int i;
 	block_wsum_zero_ptr self = block_wsum_zero_base(proof, count);
 	va_list argp;
@@ -470,19 +458,6 @@ void require_wsum_zero(proof_t proof, int count, ...) {
 		self->indices[i] = var_secret_for(proof, va_arg(argp, var_t));
 	}
 	va_end(argp);
-}
-
-void require_wsum_zero_2(proof_t proof, long a_coeff, var_t a, long b_coeff, var_t b) {
-	block_wsum_zero_ptr self = block_wsum_zero_base(proof, 2);
-	self->coefficients[0] = a_coeff; self->indices[0] = var_secret_for(proof, a);
-	self->coefficients[1] = b_coeff; self->indices[1] = var_secret_for(proof, b);
-}
-
-void require_wsum_zero_3(proof_t proof, long a_coeff, var_t a, long b_coeff, var_t b, long c_coeff, var_t c) {
-	block_wsum_zero_ptr self = block_wsum_zero_base(proof, 3);
-	self->coefficients[0] = a_coeff; self->indices[0] = var_secret_for(proof, a);
-	self->coefficients[1] = b_coeff; self->indices[1] = var_secret_for(proof, b);
-	self->coefficients[2] = c_coeff; self->indices[2] = var_secret_for(proof, c);
 }
 
 void require_wsum_zero_many(proof_t proof, int count, long* coeffs, var_t* vars) {
@@ -534,7 +509,7 @@ void block_product(proof_t proof, var_t product, var_t factor_1, var_t factor_2)
 	self->base->claim_gen = &_product_claim_gen;
 	self->base->response_gen = &_product_response_gen;
 	self->base->response_verify = &_product_response_verify;
-	self->base->inst_type = (type_ptr)void_type;
+	self->base->supplement_type = (type_ptr)void_type;
 	self->base->claim_secret_type = (type_ptr)self->Zx_type;
 	self->base->claim_public_type = (type_ptr)self->Gx_type;
 	self->base->response_type = (type_ptr)self->Zx_type;
