@@ -481,7 +481,7 @@ void require_sig(proof_t proof, sig_scheme_ptr scheme, data_ptr public_key, supp
 	va_list argp;
 	va_start(argp, sig);
 	for (i = 0; i < scheme->n; i++) {
-		self->indices[i] = var_secret_for(proof, va_arg(argp, var_t));
+		self->indices[i] = var_index(var_secret_for(proof, va_arg(argp, var_t)));
 	}
 	va_end(argp);
 }
@@ -491,6 +491,6 @@ void require_sig_many(proof_t proof, sig_scheme_ptr scheme, data_ptr public_key,
 	block_sig_ptr self = block_sig_base(proof, scheme, public_key);
 	*sig = self->sig;
 	for (i = 0; i < scheme->n; i++) {
-		self->indices[i] = var_secret_for(proof, vars[i]);
+		self->indices[i] = var_index(var_secret_for(proof, vars[i]));
 	}
 }
