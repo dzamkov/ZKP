@@ -140,7 +140,7 @@ void _equals_public_clear(block_ptr);
 void _equals_public_claim_gen(block_ptr, proof_t, inst_t, data_ptr, data_ptr);
 void _equals_public_response_gen(block_ptr, proof_t, inst_t, data_ptr, challenge_t, data_ptr);
 int _equals_public_response_verify(block_ptr, proof_t, inst_t, data_ptr, challenge_t, data_ptr);
-void block_equals_public(proof_t proof, var_t secret, var_t public) {
+void block_equals_public(proof_t proof, long secret_index, long public_index) {
 	block_equals_public_ptr self = (block_equals_public_ptr)pbc_malloc(sizeof(block_equals_public_t));
 	self->base->clear = &_equals_public_clear;
 	self->base->claim_gen = &_equals_public_claim_gen;
@@ -150,8 +150,8 @@ void block_equals_public(proof_t proof, var_t secret, var_t public) {
 	self->base->claim_secret_type = (type_ptr)proof->Z_type;
 	self->base->claim_public_type = (type_ptr)proof->G_type;
 	self->base->response_type = (type_ptr)proof->Z_type;
-	self->secret_index = var_index(secret);
-	self->public_index = var_index(public);
+	self->secret_index = secret_index;
+	self->public_index = public_index;
 	block_insert(proof, (block_ptr)self);
 }
 
@@ -325,14 +325,14 @@ void require_equal(proof_t proof, int count, /* var_t a, var_t b, */ ...) {
 	struct block_equals_s *self = block_equals_base(proof, count);
 	va_list argp;
 	va_start(argp, count);
-	for (i = 0; i < count; i++) self->indices[i] = var_secret_for(proof, va_arg(argp, var_t));
+	for (i = 0; i < count; i++) self->indices[i] = var_secret_index(proof, va_arg(argp, var_t));
 	va_end(argp);
 }
 
 void require_equal_many(proof_t proof, int count, var_t* vars) {
 	int i;
 	struct block_equals_s *self = block_equals_base(proof, count);
-	for (i = 0; i < count; i++) self->indices[i] = var_secret_for(proof, vars[i]);
+	for (i = 0; i < count; i++) self->indices[i] = var_secret_index(proof, vars[i]);
 }
 
 /***************************************************
@@ -436,16 +436,16 @@ int _wsum_zero_response_verify(block_ptr block, proof_t proof, inst_t inst, data
 
 void require_sum(proof_t proof, var_t sum, var_t addend_1, var_t addend_2) {
 	block_wsum_zero_ptr self = block_wsum_zero_base(proof, 3);
-	self->coefficients[0] = -1; self->indices[0] = var_secret_for(proof, sum);
-	self->coefficients[1] = 1; self->indices[1] = var_secret_for(proof, addend_1);
-	self->coefficients[2] = 1; self->indices[2] = var_secret_for(proof, addend_2);
+	self->coefficients[0] = -1; self->indices[0] = var_secret_index(proof, sum);
+	self->coefficients[1] = 1; self->indices[1] = var_secret_index(proof, addend_1);
+	self->coefficients[2] = 1; self->indices[2] = var_secret_index(proof, addend_2);
 }
 
 void require_dif(proof_t proof, var_t dif, var_t minuend, var_t subtrahend) {
 	block_wsum_zero_ptr self = block_wsum_zero_base(proof, 3);
-	self->coefficients[0] = -1; self->indices[0] = var_secret_for(proof, dif);
-	self->coefficients[1] = 1; self->indices[1] = var_secret_for(proof, minuend);
-	self->coefficients[2] = -1; self->indices[2] = var_secret_for(proof, subtrahend);
+	self->coefficients[0] = -1; self->indices[0] = var_secret_index(proof, dif);
+	self->coefficients[1] = 1; self->indices[1] = var_secret_index(proof, minuend);
+	self->coefficients[2] = -1; self->indices[2] = var_secret_index(proof, subtrahend);
 }
 
 void require_wsum_zero(proof_t proof, int count, /* long a_coeff, var_t a, long b_coeff, var_t b, */ ...) {
@@ -455,7 +455,7 @@ void require_wsum_zero(proof_t proof, int count, /* long a_coeff, var_t a, long 
 	va_start(argp, count);
 	for (i = 0; i < count; i++) {
 		self->coefficients[i] = va_arg(argp, long);
-		self->indices[i] = var_secret_for(proof, va_arg(argp, var_t));
+		self->indices[i] = var_secret_index(proof, va_arg(argp, var_t));
 	}
 	va_end(argp);
 }
@@ -465,7 +465,7 @@ void require_wsum_zero_many(proof_t proof, int count, long* coeffs, var_t* vars)
 	block_wsum_zero_ptr self = block_wsum_zero_base(proof, count);
 	for (i = 0; i < count; i++) {
 		self->coefficients[i] = coeffs[i];
-		self->indices[i] = var_secret_for(proof, vars[i]);
+		self->indices[i] = var_secret_index(proof, vars[i]);
 	}
 }
 
@@ -501,7 +501,7 @@ void _product_clear(block_ptr);
 void _product_claim_gen(block_ptr, proof_t, inst_t, data_ptr, data_ptr);
 void _product_response_gen(block_ptr, proof_t, inst_t, data_ptr, challenge_t, data_ptr);
 int _product_response_verify(block_ptr, proof_t, inst_t, data_ptr, challenge_t, data_ptr);
-void block_product(proof_t proof, var_t product, var_t factor_1, var_t factor_2) {
+void block_product(proof_t proof, long product_index, long factor_1_index, long factor_2_index) {
 	block_product_ptr self = (block_product_ptr)pbc_malloc(sizeof(block_product_t));
 	array_type_init(self->Zx_type, (type_ptr)proof->Z_type, 3);
 	array_type_init(self->Gx_type, (type_ptr)proof->G_type, 2);
@@ -513,9 +513,9 @@ void block_product(proof_t proof, var_t product, var_t factor_1, var_t factor_2)
 	self->base->claim_secret_type = (type_ptr)self->Zx_type;
 	self->base->claim_public_type = (type_ptr)self->Gx_type;
 	self->base->response_type = (type_ptr)self->Zx_type;
-	self->product_index = var_index(product);
-	self->factor_1_index = var_index(factor_1);
-	self->factor_2_index = var_index(factor_2);
+	self->product_index = product_index;
+	self->factor_1_index = factor_1_index;
+	self->factor_2_index = factor_2_index;
 	block_insert(proof, (block_ptr)self);
 }
 
@@ -599,7 +599,7 @@ end:
 
 void require_mul(proof_t proof, var_t product, var_t factor_1, var_t factor_2) {
 	block_product(proof,
-		var_secret_for(proof, product),
-		var_secret_for(proof, factor_1),
-		var_secret_for(proof, factor_2));
+		var_secret_index(proof, product),
+		var_secret_index(proof, factor_1),
+		var_secret_index(proof, factor_2));
 }

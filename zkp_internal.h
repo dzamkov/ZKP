@@ -15,9 +15,9 @@ void mpz_decompose(mpz_t a, mpz_t b, mpz_t c, mpz_t d, mpz_t n);
 // Gets the index for the given variable.
 long var_index(var_t var);
 
-// Returns a secret variable that is equivalent to the given variable (possibly the
-// variable itself).
-var_t var_secret_for(proof_t proof, var_t var);
+// Returns a variable index for a secret variable that is equivalent to the given
+// variable.
+long var_secret_index(proof_t proof, var_t var);
 
 // A computational procedure for a proof that calculates the values of a subset of
 // instance variables.
@@ -64,9 +64,9 @@ void block_insert(proof_t proof, block_ptr block);
 void blocks_clear(proof_t proof);
 
 // Inserts a block into a proof that verifies that a secret variable and a public variable are equivalent.
-void block_equals_public(proof_t proof, var_t secret, var_t _public);
+void block_equals_public(proof_t proof, long secret_index, long public_index);
 
 // Inserts a block into a proof that verifies a product relationship between three secret variables.
-void block_product(proof_t proof, var_t product, var_t factor_1, var_t factor_2);
+void block_product(proof_t proof, long product_index, long factor_1_index, long factor_2_index);
 
 #endif // ZKP_INTERNAL_H_

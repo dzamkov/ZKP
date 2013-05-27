@@ -73,14 +73,14 @@ long var_index(var_t var) {
 	return var & VAR_INDEX_MASK;
 }
 
-var_t var_secret_for(proof_t proof, var_t var) {
+long var_secret_index(proof_t proof, var_t var) {
 	if (var_is_secret(var)) {
-		return var;
+		return var_index(var);
 	} else {
 		var_t mirror = var_secret(proof);
 		computation_mov(proof, mirror, var);
-		block_equals_public(proof, mirror, var);
-		return mirror;
+		block_equals_public(proof, var_index(mirror), var_index(var));
+		return var_index(mirror);
 	}
 }
 
